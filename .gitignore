@@ -1,5 +1,4 @@
 node_modules
 .DS_Store
 .project
-bin/pixi.amd.dev.js
-bin/pixi.amd.js
+examples/

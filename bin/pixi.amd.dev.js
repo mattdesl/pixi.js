@@ -9,13 +9,8 @@
  * Pixi.JS is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
  */
-/**
- * @author Mat Groves http://matgroves.com/ @Doormat23
- */
+define( function() {
 
-(function(){
-
-	var root = this;
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -10537,18 +10532,6 @@ PIXI.SpineLoader.prototype.onLoaded = function () {
 };
 
 
-/**
- * @author Mat Groves http://matgroves.com/ @Doormat23
- */
+return PIXI;
 
-    if (typeof exports !== 'undefined') {
-        if (typeof module !== 'undefined' && module.exports) {
-            exports = module.exports = PIXI;
-        }
-        exports.PIXI = PIXI;
-    } else if (typeof define !== 'undefined' && define.amd) {
-        define(PIXI);
-    } else {
-        root.PIXI = PIXI;
-    }
-}).call(this);
+});
