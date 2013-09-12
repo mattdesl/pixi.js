@@ -4,7 +4,7 @@
  * Copyright (c) 2012, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2013-09-10
+ * Compiled: 2013-09-12
  *
  * Pixi.JS is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -1699,7 +1699,7 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 	{
 		this.textureChange = true;	
 		this.texture = texture;
-		
+	
 		if(this.__renderGroup)
 		{
 			this.__renderGroup.updateTexture(this);
@@ -1710,6 +1710,9 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 		this.texture = texture;
 	}
 	
+	this.anchor.x = texture.anchor.x;
+	this.anchor.y = texture.anchor.y;
+
 	this.updateFrame = true;
 }
 
@@ -9374,6 +9377,15 @@ PIXI.Texture = function(baseTexture, frame)
 	 */
 	this.trim = new PIXI.Point();
 
+	/**
+	 * The anchor point that a Sprite should set it's anchor to. This will most be used by
+	 * sprite sheets to offset themselves
+	 *
+	 * @property anchor
+	 * @type Point
+	 */
+	this.anchor = new PIXI.Point();
+
 	this.scope = this;
 
 	if(baseTexture.hasLoaded)
@@ -10018,7 +10030,16 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 						});
 						if (frameData[i].trimmed) {
 							//var realSize = frameData[i].spriteSourceSize;
-							PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+							//I don't think realSize is used anywhere in the library so I'm commenting this out
+							//PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+
+							//we need to upscale cause the anchor offset is calculated based on sourceSize and not frame
+							var upScaleX = frameData[i].sourceSize.w / rect.w;
+							var upScaleY = frameData[i].sourceSize.h / rect.h;
+
+							PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
+							PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
+
 							PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 							// calculate the offset!
 						}
@@ -10190,7 +10211,16 @@ PIXI.SpriteSheetLoader.prototype.onJSONLoaded = function () {
 			});
 			if (frameData[i].trimmed) {
 				//var realSize = frameData[i].spriteSourceSize;
-				PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+				//I don't think realSize is used anywhere in the library so I'm commenting this out
+				//PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+
+				//we need to upscale cause the anchor offset is calculated based on sourceSize and not frame
+				var upScaleX = frameData[i].sourceSize.w / rect.w;
+				var upScaleY = frameData[i].sourceSize.h / rect.h;
+
+				PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
+				PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
+
 				PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 				// calculate the offset!
 			}
