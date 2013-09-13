@@ -4,7 +4,7 @@
  * Copyright (c) 2012, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2013-09-10
+ * Compiled: 2013-09-13
  *
  * Pixi.JS is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -1704,7 +1704,7 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 	{
 		this.textureChange = true;	
 		this.texture = texture;
-		
+	
 		if(this.__renderGroup)
 		{
 			this.__renderGroup.updateTexture(this);
@@ -1715,6 +1715,9 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 		this.texture = texture;
 	}
 	
+	this.anchor.x = texture.anchor.x;
+	this.anchor.y = texture.anchor.y;
+
 	this.updateFrame = true;
 }
 
@@ -1921,7 +1924,7 @@ PIXI.MovieClip.prototype.updateTransform = function()
 	
 	if(!this.playing)return;
 	
-	this.currentFrame += this.animationSpeed * PIXI.Time.timeScale;
+	this.currentFrame += this.animationSpeed * this.stage.time.timeScale;
 
 	var round = Math.round( this.currentFrame );
 	
@@ -2539,15 +2542,6 @@ PIXI.InteractionManager.prototype.collectInteractiveSprite = function(displayObj
  */
 PIXI.InteractionManager.prototype.setTarget = function(target)
 {
-	if (window.navigator.msPointerEnabled) 
-	{
-		// time to remove some of that zoom in ja..
-		target.view.style["-ms-content-zooming"] = "none";
-    	target.view.style["-ms-touch-action"] = "none"
-    
-		// DO some window specific touch!
-	}
-	
 	this.target = target;
 
 	//check if the dom element has been set. If it has don't do anything
@@ -2574,6 +2568,9 @@ PIXI.InteractionManager.prototype.setTargetDomElement = function(domElement)
 	//remove previouse listeners
 	if( this.interactionDOMElement !== null ) 
 	{
+		this.interactionDOMElement.style['-ms-content-zooming'] = '';
+    	this.interactionDOMElement.style['-ms-touch-action'] = '';
+
 		this.interactionDOMElement.removeEventListener('mousemove',  this.onMouseMove, true);
 		this.interactionDOMElement.removeEventListener('mousedown',  this.onMouseDown, true);
 	 	this.interactionDOMElement.removeEventListener('mouseout',   this.onMouseOut, true);
@@ -2582,6 +2579,16 @@ PIXI.InteractionManager.prototype.setTargetDomElement = function(domElement)
 		this.interactionDOMElement.removeEventListener('touchstart', this.onTouchStart, true);
 		this.interactionDOMElement.removeEventListener('touchend', this.onTouchEnd, true);
 		this.interactionDOMElement.removeEventListener('touchmove', this.onTouchMove, true);
+	}
+
+
+	if (window.navigator.msPointerEnabled) 
+	{
+		// time to remove some of that zoom in ja..
+		domElement.style['-ms-content-zooming'] = 'none';
+    	domElement.style['-ms-touch-action'] = 'none';
+    
+		// DO some window specific touch!
 	}
 
 	this.interactionDOMElement = domElement;
@@ -2696,7 +2703,7 @@ PIXI.InteractionManager.prototype.onMouseMove = function(event)
 {
 	this.mouse.originalEvent = event || window.event; //IE uses window.event
 	// TODO optimize by not check EVERY TIME! maybe half as often? //
-	var rect = this.target.view.getBoundingClientRect();
+	var rect = this.interactionDOMElement.getBoundingClientRect();
 	
 	this.mouse.global.x = (event.clientX - rect.left) * (this.target.width / rect.width);
 	this.mouse.global.y = (event.clientY - rect.top) * ( this.target.height / rect.height);
@@ -2916,7 +2923,7 @@ PIXI.InteractionManager.prototype.hitTest = function(item, interactionData)
  */
 PIXI.InteractionManager.prototype.onTouchMove = function(event)
 {
-	var rect = this.target.view.getBoundingClientRect();
+	var rect = this.interactionDOMElement.getBoundingClientRect();
 	var changedTouches = event.changedTouches;
 	
 	for (var i=0; i < changedTouches.length; i++) 
@@ -2947,7 +2954,7 @@ PIXI.InteractionManager.prototype.onTouchMove = function(event)
  */
 PIXI.InteractionManager.prototype.onTouchStart = function(event)
 {
-	var rect = this.target.view.getBoundingClientRect();
+	var rect = this.interactionDOMElement.getBoundingClientRect();
 	
 	var changedTouches = event.changedTouches;
 	for (var i=0; i < changedTouches.length; i++) 
@@ -2997,7 +3004,7 @@ PIXI.InteractionManager.prototype.onTouchStart = function(event)
 PIXI.InteractionManager.prototype.onTouchEnd = function(event)
 {
 	//this.mouse.originalEvent = event || window.event; //IE uses window.event
-	var rect = this.target.view.getBoundingClientRect();
+	var rect = this.interactionDOMElement.getBoundingClientRect();
 	var changedTouches = event.changedTouches;
 	
 	for (var i=0; i < changedTouches.length; i++) 
@@ -3170,6 +3177,15 @@ PIXI.Stage = function(backgroundColor, interactive)
 	 * @private
 	 */
 	this.dirty = true;
+
+	/**
+	 * time is an instance of the Time class. It can be used to perform frame independent animations.
+	 * This property will be set by the renderer during render.
+	 *
+	 * @property time
+	 * @type {Time}
+	 */	
+	this.time = null;
 
 	this.__childrenAdded = [];
 	this.__childrenRemoved = [];
@@ -3656,14 +3672,36 @@ PIXI.PolyK._convex = function(ax, ay, bx, by, cx, cy, sign)
  * @author Mikko Haapoja http://mikkoh.com/ @MikkoH
  */
 
+
 /**
-Time is a static class that can be used to ensure that items update independent of framerate. Movieclip's
-framerate will be capped by the timeScale property which is updated during every render call.
+ * The base class for all objects that are rendered on the screen.
+ *
+ * @class DisplayObject
+ * @constructor
+ */
+
+/**
+Time is a class that can be used to ensure that items update independent of framerate. Movieclip's
+framerate will be capped by the timeScale property which is updated during every render call. Each
+renderer will have their own instance of Time which will do the limitting for MovieClips.
 
 @class Time
 @static
 **/
-PIXI.Time = {
+PIXI.Time = function( targetFrameRate, minFrameRate ) {
+
+	if( targetFrameRate !== undefined ) {
+
+		this.setTargetFrameRate( targetFrameRate );
+	}
+
+	if( minFrameRate !== undefined ) {
+
+		this.setMinFrameRate( minFrameRate );
+	}
+};
+
+PIXI.Time.prototype = {
 
 /**
  * is the update scale based on the target framerate. So for example if you're expecting something
@@ -3739,7 +3777,7 @@ PIXI.Time = {
  * @type Number
  * @default 60
  */
-Object.defineProperty( PIXI.Time, 'targetFrameRate', {
+Object.defineProperty( PIXI.Time.prototype, 'targetFrameRate', {
 
 	get: PIXI.Time.getTargetFrameRate,
 	set: PIXI.Time.setTargetFrameRate
@@ -3754,7 +3792,7 @@ Object.defineProperty( PIXI.Time, 'targetFrameRate', {
  * @type Number
  * @default 12
  */
-Object.defineProperty( PIXI.Time, 'minFrameRate', {
+Object.defineProperty( PIXI.Time.prototype, 'minFrameRate', {
 
 	get: PIXI.Time.getMinFrameRate,
 	set: PIXI.Time.setMinFrameRate
@@ -4531,7 +4569,7 @@ PIXI.gl;
  * @param antialias=false {Boolean} sets antialias (only applicable in chrome at the moment)
  * 
  */
-PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
+PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targetFrameRate, minFrameRate )
 {
 	// do a catch.. only 1 webGL renderer..
 
@@ -4543,6 +4581,15 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 	this.view = view || document.createElement( 'canvas' ); 
     this.view.width = this.width;
 	this.view.height = this.height;
+
+	/**
+	 * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
+	 * perform framerate independent programmatic animations.
+	 *
+	 * @property time
+	 * @type {Time}
+	 */
+	this.time = new PIXI.Time( targetFrameRate, minFrameRate );
 
 	// deal with losing context..	
     var scope = this;
@@ -4635,7 +4682,8 @@ PIXI.WebGLRenderer.returnBatch = function(batch)
 PIXI.WebGLRenderer.prototype.render = function(stage)
 {
 	if(this.contextLost)return;
-	
+
+	stage.time = this.time;
 	
 	// if rendering a new stage clear the batchs..
 	if(this.__stage !== stage)
@@ -4701,7 +4749,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		PIXI.Texture.frameUpdates = [];
 	}
 
-	PIXI.Time.update();
+	this.time.update();
 }
 
 /**
@@ -6474,7 +6522,7 @@ PIXI.WebGLRenderGroup.prototype.initStrip = function(strip)
  * @param view {Canvas} the canvas to use as a view, optional
  * @param transparent=false {Boolean} the transparency of the render view, default false
  */
-PIXI.CanvasRenderer = function(width, height, view, transparent)
+PIXI.CanvasRenderer = function(width, height, view, transparent, targetFrameRate, minFrameRate )
 {
 	this.transparent = transparent;
 
@@ -6511,6 +6559,15 @@ PIXI.CanvasRenderer = function(width, height, view, transparent)
 	 */
 	this.context = this.view.getContext("2d");
 
+	/**
+	 * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
+	 * perform framerate independent programmatic animations.
+	 *
+	 * @property time
+	 * @type {Time}
+	 */
+	this.time = new PIXI.Time( targetFrameRate, minFrameRate );
+
 	this.refresh = true;
 	// hack to enable some hardware acceleration!
 	//this.view.style["transform"] = "translatez(0)";
@@ -6534,6 +6591,8 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 	
 	//stage.__childrenAdded = [];
 	//stage.__childrenRemoved = [];
+
+	stage.time = this.time;
 	
 	// update textures if need be
 	PIXI.texturesToUpdate = [];
@@ -6567,7 +6626,7 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 		PIXI.Texture.frameUpdates = [];
 	}
 	
-	PIXI.Time.update();
+	this.time.update();
 }
 
 /**
@@ -9375,6 +9434,15 @@ PIXI.Texture = function(baseTexture, frame)
 	 */
 	this.trim = new PIXI.Point();
 
+	/**
+	 * The anchor point that a Sprite should set it's anchor to. This will most be used by
+	 * sprite sheets to offset themselves
+	 *
+	 * @property anchor
+	 * @type Point
+	 */
+	this.anchor = new PIXI.Point();
+
 	this.scope = this;
 
 	if(baseTexture.hasLoaded)
@@ -10019,7 +10087,16 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 						});
 						if (frameData[i].trimmed) {
 							//var realSize = frameData[i].spriteSourceSize;
-							PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+							//I don't think realSize is used anywhere in the library so I'm commenting this out
+							//PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+
+							//we need to upscale cause the anchor offset is calculated based on sourceSize and not frame
+							var upScaleX = frameData[i].sourceSize.w / rect.w;
+							var upScaleY = frameData[i].sourceSize.h / rect.h;
+
+							PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
+							PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
+
 							PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 							// calculate the offset!
 						}
@@ -10191,7 +10268,16 @@ PIXI.SpriteSheetLoader.prototype.onJSONLoaded = function () {
 			});
 			if (frameData[i].trimmed) {
 				//var realSize = frameData[i].spriteSourceSize;
-				PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+				//I don't think realSize is used anywhere in the library so I'm commenting this out
+				//PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+
+				//we need to upscale cause the anchor offset is calculated based on sourceSize and not frame
+				var upScaleX = frameData[i].sourceSize.w / rect.w;
+				var upScaleY = frameData[i].sourceSize.h / rect.h;
+
+				PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
+				PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
+
 				PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 				// calculate the offset!
 			}
