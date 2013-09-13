@@ -73,6 +73,23 @@ PIXI.MovieClip.prototype = Object.create( PIXI.Sprite.prototype );
 PIXI.MovieClip.prototype.constructor = PIXI.MovieClip;
 
 /**
+* [read-only] totalFrames is the total number of frames in the MovieClip. This is the same as number of textures
+* assigned to the MovieClip.
+*
+* @property totalFrames
+* @type Number
+* @default 0
+* @readOnly
+*/
+Object.defineProperty( PIXI.MovieClip.prototype, 'totalFrames', {
+	get: function() {
+
+		return this.textures.length;
+	}
+});
+
+
+/**
  * Stops the MovieClip
  *
  * @method stop
@@ -130,17 +147,29 @@ PIXI.MovieClip.prototype.updateTransform = function()
 	
 	if(!this.playing)return;
 	
-	this.currentFrame += this.animationSpeed;
-	
-	var round = (this.currentFrame + 0.5) | 0;
+	this.currentFrame += this.animationSpeed * PIXI.Time.timeScale;
+
+	var round = Math.round( this.currentFrame );
 	
 	if(this.loop || round < this.textures.length)
 	{
-		this.setTexture(this.textures[round % this.textures.length]);
+		var nFrame = round % this.textures.length;
+
+		if( nFrame < 0 ) {
+
+			nFrame += this.textures.length;
+		}
+
+		this.setTexture( this.textures[ nFrame ] );
+	}
+	else if(round <= 0 ) 
+	{
+		this.gotoAndStop( 0 );
 	}
 	else if(round >= this.textures.length)
 	{
 		this.gotoAndStop(this.textures.length - 1);
+
 		if(this.onComplete)
 		{
 			this.onComplete();
