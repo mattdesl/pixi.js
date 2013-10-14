@@ -133,7 +133,7 @@ PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection)
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
 		this.spriteBatch.begin();
-		stage._glDraw(this.spriteBatch, projection, this.extras);
+		stage._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
 };

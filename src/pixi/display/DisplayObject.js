@@ -523,7 +523,7 @@ PIXI.DisplayObject.prototype.isShowing = function()
 } 
 
 //To avoid recursion in WebGLRenderer we'll define the methods here...
-PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
+PIXI.DisplayObject.prototype._glDraw = function(renderer, projection) 
 {
 	//base display object doesn't draw anything
 };

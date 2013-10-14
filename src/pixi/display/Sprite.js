@@ -339,7 +339,7 @@ PIXI.Sprite.prototype._isCulled = function()
           b.y <= maxY);
 };
 
-PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
+PIXI.Sprite.prototype._glDraw = function(renderer, projection) 
 {	
 	//don't draw anything if not visible!
 	if (!this.isShowing())
@@ -354,12 +354,12 @@ PIXI.Sprite.prototype._glDraw = function(batch, projection, extras)
 
 
 		//set new blend mode (this will flush batch if different)
-		batch.setBlendMode(this.blendMode);
+		renderer.spriteBatch.setBlendMode(this.blendMode);
 		//draw the object (batch will be flushed if the texture is different)
-		batch.drawVertices(this.texture, this._vertices, 0);
+		renderer.spriteBatch.drawVertices(this.texture, this._vertices, 0);
 
 	}
 	//draw any children we might have in this sprite..
-	this._glDrawChildren(batch, projection, extras);
+	this._glDrawChildren(renderer, projection);
 };
 

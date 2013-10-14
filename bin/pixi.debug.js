@@ -1215,7 +1215,7 @@ PIXI.DisplayObject.prototype.isShowing = function()
 } 
 
 //To avoid recursion in WebGLRenderer we'll define the methods here...
-PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
+PIXI.DisplayObject.prototype._glDraw = function(renderer, projection) 
 {
 	//base display object doesn't draw anything
 };
@@ -1593,12 +1593,12 @@ PIXI.DisplayObjectContainer.prototype.updateTransform = function()
 ////TODO --- would be nice to clean this up and decouple it from DisplayObjectContainer
 //The methods are defined per object instead of recursively rendering in WebGLRenderer.
 
-PIXI.DisplayObjectContainer.prototype._glDraw = function(batch, projection, extras) 
+PIXI.DisplayObjectContainer.prototype._glDraw = function(renderer, projection) 
 {	
-	this._glDrawChildren(batch, projection, extras);
+	this._glDrawChildren(renderer, projection);
 };
 
-PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projection, extras) 
+PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(renderer, projection) 
 {
 	var children = this.children;
 	var len = children.length;
@@ -1612,15 +1612,15 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projecti
 
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
-		if (extras.isExtra(c)) {
+		if (renderer.extras.isExtra(c)) {
 			batch.end(); //stop the batch  
-			extras.render(c);
+			renderer.extras.render(renderer, c, projection);
 			batch.begin(projection); //start again after extra has been rendered
 		} 
 		// console.log("Rendering ", c);
 
 		//now we draw it like any other DisplayObject, incase it has some children
-		c._glDraw(batch, projection, extras);
+		c._glDraw(renderer, projection);
 	}
 };
 
@@ -1967,7 +1967,7 @@ PIXI.Sprite.prototype._isCulled = function()
           b.y <= maxY);
 };
 
-PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
+PIXI.Sprite.prototype._glDraw = function(renderer, projection) 
 {	
 	//don't draw anything if not visible!
 	if (!this.isShowing())
@@ -1977,19 +1977,18 @@ PIXI.Sprite.prototype._glDraw = function(batch, projection, extras)
 		this._updateVertices();
 
 		if (this._isCulled()) {
-			console.log("culled");
 			return;
 		}
 
 
 		//set new blend mode (this will flush batch if different)
-		batch.setBlendMode(this.blendMode);
+		renderer.spriteBatch.setBlendMode(this.blendMode);
 		//draw the object (batch will be flushed if the texture is different)
-		batch.drawVertices(this.texture, this._vertices, 0);
+		renderer.spriteBatch.drawVertices(this.texture, this._vertices, 0);
 
 	}
 	//draw any children we might have in this sprite..
-	this._glDrawChildren(batch, projection, extras);
+	this._glDrawChildren(renderer, projection);
 };
 
 
@@ -5090,7 +5089,7 @@ PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection)
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
 		this.spriteBatch.begin();
-		stage._glDraw(this.spriteBatch, projection, this.extras);
+		stage._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
 };
