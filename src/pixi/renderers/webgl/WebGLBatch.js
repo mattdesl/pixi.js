@@ -419,7 +419,7 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		if(displayObject.visible) //displayObject.vcount === PIXI.visibleCount
+		if(displayObject.vcount === PIXI.visibleCount)
 		{
 			width = displayObject.texture.frame.width;
 			height = displayObject.texture.frame.height;

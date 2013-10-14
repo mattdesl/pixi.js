@@ -1199,6 +1199,8 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 
 };
 
+PIXI.visibleCount = 0;
+
 //To avoid recursion in WebGLRenderer we'll define the methods here...
 PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
 {
@@ -3279,7 +3281,6 @@ PIXI.Stage.prototype.updateTransform = function()
 {
 	this.worldAlpha = 1;
 	this.vcount = PIXI.visibleCount;
-	
 
 	for(var i=0,j=this.children.length; i<j; i++)
 	{
@@ -5784,7 +5785,7 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		if(displayObject.worldVisible) //displayObject.vcount === PIXI.visibleCount
+		if(displayObject.vcount === PIXI.visibleCount)
 		{
 			width = displayObject.texture.frame.width;
 			height = displayObject.texture.frame.height;
