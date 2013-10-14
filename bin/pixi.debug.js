@@ -1629,10 +1629,11 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projecti
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
 		if (extras.isExtra(c)) {
-			batch.end(); //stop the batch
+			batch.end(); //stop the batch  
 			extras.render(c);
 			batch.begin(projection); //start again after extra has been rendered
 		} 
+		// console.log("Rendering ", c);
 
 		//now we draw it like any other DisplayObject, incase it has some children
 		c._glDraw(batch, projection, extras);
@@ -1832,17 +1833,16 @@ PIXI.Sprite.fromImage = function(imageId)
 
 PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
 {	
-	if (!this.texture) { 
-		console.warn("has no tex");
-		return;
-	}
 	//don't draw anything if not visible!
 	if (!this.visible)
 		return;
-	//set new blend mode (this will flush batch if different)
-	batch.setBlendMode(this.blendMode);
-	//draw the object (batch will be flushed if the texture is different)
-	batch.drawDisplayObject(this);
+	if (this.texture && this.texture.baseTexture && this.texture.baseTexture._glTexture) {
+		//set new blend mode (this will flush batch if different)
+		batch.setBlendMode(this.blendMode);
+		//draw the object (batch will be flushed if the texture is different)
+		batch.drawDisplayObject(this);
+
+	}
 	//draw any children we might have in this sprite..
 	this._glDrawChildren(batch, projection, extras);
 };
@@ -5863,8 +5863,8 @@ PIXI.SpriteBatch.prototype.flush = function()
 	var spriteCount = (this.idx / (numComponents * 4));
  	
  	//draw the sprites
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-
+    gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
+    
     this.idx = 0;
 };
 
@@ -5876,12 +5876,12 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
 	var texture = displayObject.texture;
-	
+
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
 		this.flush();
 		this.baseTexture = texture.baseTexture;
-	} else if (this.idx == vertices.length) {
+	} else if (this.idx == this.vertices.length) {
 		this.flush(); //we've reached our max, flush before pushing more data
 	}
 

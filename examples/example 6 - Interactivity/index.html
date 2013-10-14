@@ -18,9 +18,11 @@
 		}
 	</style>
 
-
+ 
 	
-	<script src="pixi.js"></script>
+	<script src="../../bin/pixi.debug.js"></script>
+	<!-- Used for our LiveReload extension -->
+	<script src="http://localhost:35729/livereload.js"></script>
 </head>
 <body>
 	<script>
@@ -31,6 +33,7 @@
 	var stage = new PIXI.Stage(0x000000, interactive);
 	
 	// create a renderer instance.
+	PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
 	var renderer = PIXI.autoDetectRenderer(620, 400);
 	
 	// add the renderer view element to the DOM
@@ -62,6 +65,7 @@
 	{
 		var button = new PIXI.Sprite(textureButton);
 		button.buttonMode = true;
+		button.idx = i;
 		
 		button.anchor.x = 0.5;
 		button.anchor.y = 0.5;

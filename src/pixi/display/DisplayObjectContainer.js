@@ -394,10 +394,11 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projecti
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
 		if (extras.isExtra(c)) {
-			batch.end(); //stop the batch
+			batch.end(); //stop the batch  
 			extras.render(c);
 			batch.begin(projection); //start again after extra has been rendered
 		} 
+		// console.log("Rendering ", c);
 
 		//now we draw it like any other DisplayObject, incase it has some children
 		c._glDraw(batch, projection, extras);

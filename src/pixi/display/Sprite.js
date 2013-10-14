@@ -189,17 +189,16 @@ PIXI.Sprite.fromImage = function(imageId)
 
 PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
 {	
-	if (!this.texture) { 
-		console.warn("has no tex");
-		return;
-	}
 	//don't draw anything if not visible!
 	if (!this.visible)
 		return;
-	//set new blend mode (this will flush batch if different)
-	batch.setBlendMode(this.blendMode);
-	//draw the object (batch will be flushed if the texture is different)
-	batch.drawDisplayObject(this);
+	if (this.texture && this.texture.baseTexture && this.texture.baseTexture._glTexture) {
+		//set new blend mode (this will flush batch if different)
+		batch.setBlendMode(this.blendMode);
+		//draw the object (batch will be flushed if the texture is different)
+		batch.drawDisplayObject(this);
+
+	}
 	//draw any children we might have in this sprite..
 	this._glDrawChildren(batch, projection, extras);
 };

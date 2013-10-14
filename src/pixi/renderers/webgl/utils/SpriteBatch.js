@@ -152,8 +152,8 @@ PIXI.SpriteBatch.prototype.flush = function()
 	var spriteCount = (this.idx / (numComponents * 4));
  	
  	//draw the sprites
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-
+    gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
+    
     this.idx = 0;
 };
 
@@ -165,12 +165,12 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
 	var texture = displayObject.texture;
-	
+
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
 		this.flush();
 		this.baseTexture = texture.baseTexture;
-	} else if (this.idx == vertices.length) {
+	} else if (this.idx == this.vertices.length) {
 		this.flush(); //we've reached our max, flush before pushing more data
 	}
 
