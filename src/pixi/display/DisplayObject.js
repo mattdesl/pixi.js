@@ -510,6 +510,8 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 
 };
 
+PIXI.visibleCount = 0;
+
 //To avoid recursion in WebGLRenderer we'll define the methods here...
 PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
 {
