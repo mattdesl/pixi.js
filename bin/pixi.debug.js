@@ -4837,7 +4837,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  * @param  {batchMode} batchMode
  * @default PIXI.WebGLRenderer.BATCH_GROUPS
  */
-PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
 
 PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
