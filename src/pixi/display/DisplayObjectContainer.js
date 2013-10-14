@@ -392,9 +392,9 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(renderer, proje
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
 		if (renderer.extras.isExtra(c)) {
-			batch.end(); //stop the batch  
+			renderer.spriteBatch.end(); //stop the batch  
 			renderer.extras.render(renderer, c, projection);
-			batch.begin(projection); //start again after extra has been rendered
+			renderer.spriteBatch.begin(projection); //start again after extra has been rendered
 		} 
 		// console.log("Rendering ", c);
 

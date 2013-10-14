@@ -69,6 +69,7 @@ PIXI.SpriteBatch = function(gl, size)
 
 PIXI.SpriteBatch.totalRenderCalls = 0;
 
+
 // constructor
 PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
 
@@ -97,6 +98,7 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 	//disable depth mask
 	gl.depthMask(false);
 
+
 	//activate texture0
 	gl.activeTexture(gl.TEXTURE0);
 
@@ -108,6 +110,10 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 
 	//premultiplied alpha
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+
+	//bind the element buffer
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
 
 	this.drawing = true;
 };

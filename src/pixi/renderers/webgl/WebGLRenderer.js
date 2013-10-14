@@ -43,14 +43,16 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 
 	this.batchs = [];
 
+	this.contextOptions = {
+		 alpha: this.transparent,
+		 antialias: !!antialias, // SPEED UP??
+		 premultipliedAlpha:false,
+		 stencil:true
+    };
+
 	try
  	{
-        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  {
-    		 alpha: this.transparent,
-    		 antialias:!!antialias, // SPEED UP??
-    		 premultipliedAlpha:false,
-    		 stencil:true
-        });
+        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  this.contextOptions);
     }
     catch (e)
     {
@@ -64,13 +66,13 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
     PIXI.activateDefaultShader();
 
     var gl = this.gl;
+
+
+        
+
     PIXI.WebGLRenderer.gl = gl;
 
-   	gl.disable(gl.DEPTH_TEST);
-   	gl.disable(gl.CULL_FACE);
-
-    gl.enable(gl.BLEND);
-    gl.colorMask(true, true, true, this.transparent);
+    this.initializeGL();
 
     PIXI.projection = new PIXI.Point(400, 300);
 
@@ -84,6 +86,19 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
     else {
     	this.spriteBatch = new PIXI.SpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
+
+    //can simulate context loss in Chrome like so:
+    // this.view.onmousedown = function(ev) {
+    // 	//console.log(this.gl.getSupportedExtensions());
+    // 	var loseCtx = this.gl.getExtension("WEBGL_lose_context");
+    // 	console.log("killing context");
+    // 	loseCtx.loseContext();
+
+    // 	setTimeout(function() {
+    // 		console.log("restoring context...");
+    // 		loseCtx.restoreContext();
+    // 	}.bind(this), 1000);
+    // }.bind(this);
 }
 
 // constructor
@@ -215,8 +230,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	var gl = this.gl;
 
 	// -- Does this need to be set every frame? -- //
-	gl.colorMask(true, true, true, this.transparent);
-	gl.viewport(0, 0, this.width, this.height);
 
    	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -361,6 +374,23 @@ PIXI.WebGLRenderer.prototype.resize = function(width, height)
 }
 
 /**
+ * Init the default GL states.
+ */
+PIXI.WebGLRenderer.prototype.initializeGL = function()
+{
+	var gl = this.gl;
+   	gl.disable(gl.DEPTH_TEST);
+   	gl.disable(gl.CULL_FACE);
+
+    gl.enable(gl.BLEND);
+
+    //TODO: investigate -- why wouldn't we write to alpha channel?
+    gl.colorMask(true, true, true, this.transparent);
+	gl.viewport(0, 0, this.width, this.height);
+}
+
+
+/**
  * Handles a lost webgl context
  *
  * @method handleContextLost
@@ -371,6 +401,7 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
 {
 	event.preventDefault();
 	this.contextLost = true;
+	// console.warn("context lost");
 }
 
 /**
@@ -379,14 +410,17 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
  * @method handleContextRestored
  * @param event {Event}
  * @private
- */
+*/
 PIXI.WebGLRenderer.prototype.handleContextRestored = function(event)
 {
-	this.gl = this.view.getContext("experimental-webgl",  {
-		alpha: true
-    });
+	this.gl = this.view.getContext("experimental-webgl", this.contextOptions);
+    // console.warn("context restored");
 
-	this.initShaders();
+    PIXI.initPrimitiveShader();
+    PIXI.initDefaultShader();
+    PIXI.initDefaultStripShader();
+
+    this.initializeGL();
 
 	for(var key in PIXI.TextureCache)
 	{
@@ -395,11 +429,13 @@ PIXI.WebGLRenderer.prototype.handleContextRestored = function(event)
         	PIXI.WebGLRenderer.updateTexture(texture);
 	};
 
-	for (var i=0; i <  this.batchs.length; i++)
-	{
-		this.batchs[i].restoreLostContext(this.gl)//
-		this.batchs[i].dirty = true;
-	};
+	if (this.stageRenderGroup) {
+		this.stageRenderGroup.handleContextRestored(this.gl);
+	}
+
+	if (this.spriteBatch) {
+		this.spriteBatch.initialize(this.gl);
+	}
 
 	PIXI._restoreBatchs(this.gl);
 
