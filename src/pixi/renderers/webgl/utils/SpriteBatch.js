@@ -60,6 +60,8 @@ PIXI.SpriteBatch = function(gl, size)
 	//null means "use the default"
 	this.currentShader = null;
 
+	this.boundsCheck = true;
+
 	this.idx = 0;
 	this.drawing = false;
 	this.baseTexture = null; //NOTE: this is a BaseTexture
@@ -80,10 +82,12 @@ PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.SpriteBatch.prototype.begin = function(projection) 
+PIXI.SpriteBatch.prototype.begin = function(projection, bounds) 
 {
 	if (this.drawing)
 		throw "SpriteBatch.end() must be called before begin";
+
+	this.bounds = bounds;
 
 	//update any textures before trying to render..
 	PIXI.WebGLRenderer.updateTextures();
@@ -206,9 +210,22 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 	ty = worldTransform[5];
 	// console.log(a, b,c , d, tx, ty);
 
+	var x1, x2, x3, x4,
+		y1, y2, y3, y4;
+
+	x1 = a * w1 + c * h1 + tx;
+	y1 = d * h1 + b * w1 + ty;
+	x2 = a * w0 + c * h1 + tx; 
+	y2 = d * h1 + b * w0 + ty; 
+	x3 = a * w0 + c * h0 + tx; 
+	y3 = d * h0 + b * w0 + ty; 
+	x4 = a * w1 + c * h0 + tx; 
+	y4 = d * h0 + b * w1 + ty; 
+
+	
 	//xy
-	this.vertices[this.idx++] = a * w1 + c * h1 + tx; 
-	this.vertices[this.idx++] = d * h1 + b * w1 + ty;
+	this.vertices[this.idx++] = x1; 
+	this.vertices[this.idx++] = y1;
 	//uv
 	this.vertices[this.idx++] = frame.x / tw;
 	this.vertices[this.idx++] = frame.y / th;
@@ -216,8 +233,8 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 	this.vertices[this.idx++] = color;
 
 	//xy
-	this.vertices[this.idx++] = a * w0 + c * h1 + tx; 
-	this.vertices[this.idx++] = d * h1 + b * w0 + ty; 
+	this.vertices[this.idx++] = x2;
+	this.vertices[this.idx++] = y2;
 	//uv
 	this.vertices[this.idx++] = (frame.x + frame.width) / tw;
 	this.vertices[this.idx++] = frame.y / th;
@@ -225,8 +242,8 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 	this.vertices[this.idx++] = color;
 
 	//xy
-	this.vertices[this.idx++] = a * w0 + c * h0 + tx; 
-	this.vertices[this.idx++] = d * h0 + b * w0 + ty; 
+	this.vertices[this.idx++] = x3;
+	this.vertices[this.idx++] = y3;
 	//uv
 	this.vertices[this.idx++] = (frame.x + frame.width) / tw;
 	this.vertices[this.idx++] = (frame.y + frame.height) / th; 
@@ -234,8 +251,8 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 	this.vertices[this.idx++] = color;
 
 	//xy
-	this.vertices[this.idx++] = a * w1 + c * h0 + tx; 
-	this.vertices[this.idx++] = d * h0 + b * w1 + ty; 
+	this.vertices[this.idx++] = x4;
+	this.vertices[this.idx++] = y4;
 	//uv
 	this.vertices[this.idx++] = frame.x / tw;
 	this.vertices[this.idx++] = (frame.y + frame.height) / th;

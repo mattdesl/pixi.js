@@ -81,6 +81,15 @@ PIXI.Rectangle.prototype.contains = function(x, y)
 	return false;
 }
 
+PIXI.Rectangle.prototype.intersects = function(rect) {
+	return !(rect.x > (this.x+this.width) || 
+           (rect.x+rect.width) < this.x || 
+           rect.y > (this.y+this.height) ||
+           (rect.y+rect.height) < this.y);
+};
+
 // constructor
 PIXI.Rectangle.prototype.constructor = PIXI.Rectangle;
+
+
 
