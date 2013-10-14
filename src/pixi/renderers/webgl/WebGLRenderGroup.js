@@ -20,7 +20,6 @@ PIXI.WebGLRenderGroup = function(gl, extras)
 	this.gl = gl;
 	this.root;
 	
-	this.backgroundColor;
 	this.batchs = [];
 	this.toRemove = [];
 }

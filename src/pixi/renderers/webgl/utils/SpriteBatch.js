@@ -14,7 +14,7 @@
  *
  *     { x, y, u, v, alpha }
  * 
- * @class WebGLSpriteBatch
+ * @class SpriteBatch
  * @constructor
  *
  *
@@ -22,9 +22,9 @@
  * @param size {Number} the default max size of the batch, in sprites
  * @default 0
  */
-PIXI.WebGLSpriteBatch = function(gl, size)
+PIXI.SpriteBatch = function(gl, size)
 {
-	this.gl = gl;
+	this.initialize(gl);
 	this.size = size || 500;
 	this.currentShader = null;
 
@@ -33,13 +33,11 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 		throw "Can't have more than 5460 sprites per batch: " + this.size;
 
 	//the total number of floats in our batch
-	var numVerts = this.size * 4 * PIXI.WebGLSpriteBatch.SPRITE_VERTEX_SIZE;
+	var numVerts = this.size * 4 * PIXI.SpriteBatch.SPRITE_VERTEX_SIZE;
 	//the total number of indices in our batch
 	var numIndices = this.size * 6;
 
 
-	this.vertexBuffer = gl.createBuffer();
-	this.indexBuffer = gl.createBuffer();
 	this.blendMode = PIXI.blendModes.NORMAL;
 
 	this.vertices = new Float32Array(numVerts);
@@ -68,15 +66,24 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 }; 
 
 //5 floats per vertex (position, UV, alpha)
-PIXI.WebGLSpriteBatch.SPRITE_VERTEX_SIZE = 5;
+PIXI.SpriteBatch.SPRITE_VERTEX_SIZE = 5;
 
 // constructor
-PIXI.WebGLSpriteBatch.constructor = PIXI.WebGLSpriteBatch;
+PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
 
-PIXI.WebGLSpriteBatch.prototype.begin = function(projection) 
+//TODO: implement...
+PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
+{
+	//... TODO: flush and swap blend modes...
+	//Implementation should be renderer agnostic or at least 
+	//done in a way to remove duplicate code between this and WebGLRenderGroup / WebGLRenderBatch.
+	this.blendMode = blendMode;
+};
+
+PIXI.SpriteBatch.prototype.begin = function(projection) 
 {
 	if (this.drawing)
-		throw "WebGLSpriteBatch.end() must be called before begin";
+		throw "SpriteBatch.end() must be called before begin";
 
 	//update any textures before trying to render..
 	PIXI.WebGLRenderer.updateTextures();
@@ -102,10 +109,10 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection)
 	this.drawing = true;
 };
 
-PIXI.WebGLSpriteBatch.prototype.end = function(projection) 
+PIXI.SpriteBatch.prototype.end = function(projection) 
 {
 	if (!this.drawing)
-		throw "WebGLSpriteBatch.begin() must be called before end";
+		throw "SpriteBatch.begin() must be called before end";
 	if (this.idx > 0)
 		this.flush();
 	this.baseTexture = null;
@@ -115,7 +122,7 @@ PIXI.WebGLSpriteBatch.prototype.end = function(projection)
 	gl.depthMask(true); //reset to default WebGL state
 };
 
-PIXI.WebGLSpriteBatch.prototype.flush = function() 
+PIXI.SpriteBatch.prototype.flush = function() 
 {
 	if (this.idx===0)
 		return;
@@ -135,7 +142,7 @@ PIXI.WebGLSpriteBatch.prototype.flush = function()
 
 	//setup our vertex attributes
 	var shaderProgram = PIXI.shaderProgram;
-	var numComponents = PIXI.WebGLSpriteBatch.SPRITE_VERTEX_SIZE;
+	var numComponents = PIXI.SpriteBatch.SPRITE_VERTEX_SIZE;
 	var stride = numComponents * 4;
 	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
 	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
@@ -153,12 +160,12 @@ PIXI.WebGLSpriteBatch.prototype.flush = function()
 /**
  * Adds a single display object (with no children) to this batch.
  */
-PIXI.WebGLSpriteBatch.prototype.drawDisplayObject = function(displayObject) 
+PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject) 
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
 	var texture = displayObject.texture;
-
+	
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
 		this.flush();
@@ -237,12 +244,25 @@ PIXI.WebGLSpriteBatch.prototype.drawDisplayObject = function(displayObject)
 };
 
 /**
+ * Initializes the buffers, replacing the old ones, i.e. on context restoration.
+ * Does not delete old buffers -- use destroy() for that.
+ * 
+ * @method initialize
+ */
+PIXI.SpriteBatch.prototype.initialize = function(gl)
+{
+	this.gl = gl;
+	this.vertexBuffer = gl.createBuffer();
+	this.indexBuffer = gl.createBuffer();
+};
+
+/**
  * Destroys the batch, deleting its buffers. Trying to use this
  * batch after destroying it can lead to unpredictable behaviour.
  *
  * @method destroy
  */
-PIXI.WebGLSpriteBatch.prototype.destroy = function()
+PIXI.SpriteBatch.prototype.destroy = function()
 {
 	this.vertices = [];
 	this.indices = [];

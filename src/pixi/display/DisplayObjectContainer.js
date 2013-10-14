@@ -368,3 +368,40 @@ PIXI.DisplayObjectContainer.prototype.updateTransform = function()
 		this.children[i].updateTransform();	
 	}
 }
+
+
+
+////TODO --- would be nice to clean this up and decouple it from DisplayObjectContainer
+//The methods are defined per object instead of recursively rendering in WebGLRenderer.
+
+PIXI.DisplayObjectContainer.prototype._glDraw = function(batch, projection, extras) 
+{	
+	this._glDrawChildren(batch, projection, extras);
+};
+
+PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projection, extras) 
+{
+	var children = this.children;
+	var len = children.length;
+
+	for (var i=0; i<len; i++) {
+		var c = children[i];
+
+		//skip non-visible entities 
+		if (!c.visible)
+			continue;
+
+		//if the child is an "extra" type (Graphics, Strip, etc)
+		//then we need to flush the batch and render it using a different approach
+		if (extras.isExtra(c)) {
+			batch.end(); //stop the batch
+			extras.render(c);
+			batch.begin(projection); //start again after extra has been rendered
+		} 
+
+		//now we draw it like any other DisplayObject, incase it has some children
+		c._glDraw(batch, projection, extras);
+	}
+};
+
+

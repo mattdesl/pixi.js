@@ -77,15 +77,70 @@ PIXI.WebGLRenderer = function(width, height, view, transparent)
     this.contextLost = false;
 
 	this.extras = new PIXI.WebGLExtras(gl);
-    this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
-    
+
+	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
+    	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
+    else {
+    	this.spriteBatch = new PIXI.SpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    }
 }
 
 // constructor
 PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
 
 /**
- * Gets a new WebGLBatch from the pool
+ * A constant defining the BATCH_SIMPLE mode, which simply
+ * walks the scene graph and renders as much as we can in the same batch
+ * until it's time to flush (state change, texture switch, blend mode, etc).
+ * 
+ * @attribute SINGLE_BUFFER
+ * @readOnly
+ * @default  0
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
+
+/**
+ * A constant defining the BATCH_GROUPS mode, which tries
+ * to merge sprites with similar states to reduce batch flushes
+ * and improve performance. However, this doesn't work so well
+ * if you have a complex scene with a lot of nested relations,
+ * as it leads to many more batches being created.
+ * 
+ * @attribute BUFFER_GROUPS
+ * @readOnly
+ * @default  1
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_GROUPS = 1;
+
+/**
+ * Sets the batch mode that will be used the next time we initialize a WebGLRenderer,
+ * either PIXI.WebGLRenderer.BATCH_SIMPLE or PIXI.WebGLRenderer.BATCH_GROUPS.
+ *
+ * @attribute batchMode
+ * @static
+ * @param  {batchMode} batchMode
+ * @default PIXI.WebGLRenderer.BATCH_GROUPS
+ */
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+PIXI.WebGLRenderer.batchSize = 500;
+
+PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
+{
+	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
+		this.stageRenderGroup.render(this, PIXI.projection);
+	} else {
+		this.spriteBatch.begin();
+		stage._glDraw(this.spriteBatch, projection, this.extras);
+		this.spriteBatch.end();
+	}
+};
+
+
+
+/**
+ * Gets a new WebGLBatch from the pool (assumes batchMode is groups)
  *
  * @static
  * @method getBatch
@@ -137,7 +192,9 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		//if(this.__stage)this.checkVisibility(this.__stage, false)
 		
 		this.__stage = stage;
-		this.stageRenderGroup.setRenderable(stage);
+
+		if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
+			this.stageRenderGroup.setRenderable(stage);
 	}
 	
 	// TODO not needed now... 
@@ -174,9 +231,9 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 	// HACK TO TEST
 	//PIXI.projectionMatrix = this.projectionMatrix;
-	
-	this.stageRenderGroup.backgroundColor = stage.backgroundColorSplit;
-	this.stageRenderGroup.render(this, PIXI.projection);
+		
+	//renders batches with correct mode
+	this._renderStage(stage, PIXI.projection);
 	
 	// interaction
 	// run interaction!

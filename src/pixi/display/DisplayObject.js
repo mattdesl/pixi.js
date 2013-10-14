@@ -544,4 +544,10 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 	// mat3.multiply(this.localTransform, this.parent.worldTransform, this.worldTransform);
 	this.worldAlpha = this.alpha * this.parent.worldAlpha;
 
-}
+};
+
+//To avoid recursion in WebGLRenderer we'll define the methods here...
+PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
+{
+	//base display object doesn't draw anything
+};

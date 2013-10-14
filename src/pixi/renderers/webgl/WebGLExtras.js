@@ -7,6 +7,16 @@ PIXI.WebGLExtras = function(gl) {
 };
 
 
+
+PIXI.WebGLExtras.prototype.isExtra = function(displayObject) {
+//pretty ugly.. we should do some composition instead
+	return (displayObject instanceof PIXI.TilingSprite
+		|| displayObject instanceof PIXI.Strip
+		|| displayObject instanceof PIXI.CustomRenderable
+		|| displayObject instanceof PIXI.Graphics
+		|| displayObject instanceof PIXI.FilterBlock);
+};
+
 /**
  * Determines the type of extra and initializes it accordingly.
  * If the type is not one of the supported extras, no action is taken.
