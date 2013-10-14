@@ -16,72 +16,36 @@
 </head>
 <body>
 	<script>
-	
+	var width = 800;
+	var height = 600;
 	// create an new instance of a pixi stage
 	var stage = new PIXI.Stage(0x66FF99);
-	
+	stage.cullingRect = new PIXI.Rectangle(0, 0, width, height);
 	// PIXI.WebGLRenderer.batchMode = ;
 
 	// create a renderer instance
-	var renderer = new PIXI.WebGLRenderer(800, 600);
-	
+	PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+	var renderer = new PIXI.WebGLRenderer(width, height);
+	// var renderer = new PIXI.CanvasRenderer(800, 600);
 	
 	// add the renderer view element to the DOM
 	document.body.appendChild(renderer.view);
 	
 	requestAnimFrame( animate );
 	
+	var container = new PIXI.DisplayObjectContainer();
+
 	// create a texture from an image path
 	var texture = PIXI.Texture.fromImage("bunny.png");
 	// create a new Sprite using the texture
 	var bunny = new PIXI.Sprite(texture);
 
-	 // new PIXI.WebGLSpriteBatch(PIXI.gl); 
-	
-	// center the sprites anchor point
-	// bunny.anchor.x = 0.5;
-	// bunny.anchor.y = 0.5;
-	
-	// // move the sprite t the center of the screen
-	bunny.position.x = 200;
-	bunny.position.y = 150;
-	
-	var buttons = [];
-	// stage.addChild(bunny); 
+	bunny.position.x = -40;
+	container.position.x = 40; 
+	container.addChild(bunny);
 
-	var buttonPositions = [175,75,
-						   600-145, 75,
-						   600/2 - 20, 400/2 + 10,
-						   175, 400-75,
-						   600-115, 400-95];
-	for (var i=0; i < 5; i++) 
-	{
-		var button = new PIXI.Sprite(texture);
-		
-		button.anchor.x = 0.5;
-		button.anchor.y = 0.5;
-		
-		button.position.x = buttonPositions[i*2];
-		button.position.y = buttonPositions[i*2 + 1];
-
-		// stage.addChild(button);
-		buttons.push(button);
-	}
-
-	
-	buttons[0].scale.x = 1.2;
+	stage.addChild(container);
 	 
-	buttons[1].scale.y = 1.2;
-	  
-	buttons[2].rotation = Math.PI/10;
-	
-	buttons[3].scale.x = 0.8;
-	buttons[3].scale.y = 0.8;
-	
-	buttons[4].scale.x = 0.8;
-	buttons[4].scale.y = 1.2;
-	buttons[4].rotation = Math.PI;
-
 	// var batch = new PIXI.WebGLSpriteBatch(PIXI.gl);
 	
 	function animate() {
@@ -91,11 +55,24 @@
 
 	    // just for fun, lets rotate mr rabbit a little
 	    // bunny.rotation += 0.1;
+	    // renderer.context.clearRect(0,0,800,600);
+	    // renderer.context.strokeStyle = 'red';
+	    // renderer.context.strokeRect(50, 50, 25, 25);
+		 
+	    // renderer.context.strokeStyle = 'blue';
+	    // renderer.context.strokeRect(25, 25, 100, 24);
+		 
 
-		
-	    // render the stage   
+		// render the stage   
 	    renderer.render(stage);
+
+
 	}
+
+	var a = new PIXI.Rectangle(50, 50, 25, 25);
+	var b = new PIXI.Rectangle(25, 25, 100, 24);
+	console.log("intersects? "+a.intersects(b));
+	console.log("intersects? "+b.intersects(a));
 
 	</script>
 

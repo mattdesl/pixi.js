@@ -386,7 +386,7 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projecti
 		var c = children[i];
 
 		//skip non-visible entities 
-		if (!c.visible)
+		if (!c.visible || !c.isShowing())
 			continue;
 
 		//if the child is an "extra" type (Graphics, Strip, etc)

@@ -143,7 +143,6 @@ PIXI.DisplayObject = function()
 	 */
 	this.localTransform = PIXI.mat3.create()//mat3.identity();
 
-
 	/**
 	 * [NYI] Unkown
 	 *
@@ -511,16 +510,14 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 
 };
 
-
-
+<<<<<<< HEAD
 PIXI.visibleCount = 0;
-
+=======
 PIXI.DisplayObject.prototype.isShowing = function()
 {
-	if (this.vcount !== PIXI.visibleCount)
-		return false;
-	return true;
+	return this.vcount == PIXI.visibleCount;
 } 
+>>>>>>> 7619d897801ac90c5ad754dc1533c90fa036dcaf
 
 //To avoid recursion in WebGLRenderer we'll define the methods here...
 PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 

@@ -68,7 +68,7 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
  */
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
-	var worldVisible = renderable.vcount == PIXI.visibleCount;
+	var worldVisible = renderable.isShowing();
 	
 	if(renderable instanceof PIXI.TilingSprite)
 	{

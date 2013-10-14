@@ -59,6 +59,9 @@ PIXI.Stage = function(backgroundColor)
 	//optimize hit detection a bit
 	this.stage.hitArea = new PIXI.Rectangle(0,0,100000, 100000);
 
+	//Bounds can be used to cull sprites whose bounding boxes lie outside of the stage bounds
+	this.cullingRect = null;
+
 	this.setBackgroundColor(backgroundColor);
 	this.worldVisible = true;
 }
