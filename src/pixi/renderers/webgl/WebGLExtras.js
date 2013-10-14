@@ -69,6 +69,9 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
 	var worldVisible = true;
+	if (!renderable)
+		return;
+	
 	if (renderable.isShowing)
 		worldVisible = renderable.isShowing();
 	else if (renderable.visible)

@@ -1607,7 +1607,7 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(renderer, proje
 		var c = children[i];
 
 		//skip non-visible entities 
-		if (!c.visible || !c.isShowing())
+		if (!c || !c.visible || !c.isShowing())
 			continue;
 
 		//if the child is an "extra" type (Graphics, Strip, etc)
@@ -4686,6 +4686,9 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
 	var worldVisible = true;
+	if (!renderable)
+		return;
+	
 	if (renderable.isShowing)
 		worldVisible = renderable.isShowing();
 	else if (renderable.visible)
@@ -5787,7 +5790,11 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		var showing = displayObject.isShowing();
+		if (!displayObject)
+			continue;
+		
+		//TODO: fix this... make a unified isShowing method for culling etc
+		var showing = displayObject.isShowing ? displayObject.isShowing() : true;
 
 		if (showing && displayObject instanceof PIXI.Sprite 
 				&& displayObject.stage 

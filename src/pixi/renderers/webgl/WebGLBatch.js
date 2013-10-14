@@ -418,7 +418,11 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		var showing = displayObject.isShowing();
+		if (!displayObject)
+			continue;
+		
+		//TODO: fix this... make a unified isShowing method for culling etc
+		var showing = displayObject.isShowing ? displayObject.isShowing() : true;
 
 		if (showing && displayObject instanceof PIXI.Sprite 
 				&& displayObject.stage 
