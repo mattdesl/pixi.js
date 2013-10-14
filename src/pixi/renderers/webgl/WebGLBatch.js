@@ -24,7 +24,7 @@ PIXI._getBatch = function(gl)
  */
 PIXI._returnBatch = function(batch)
 {
-	batch.clean();	
+	batch.clean();
 	PIXI._batchs.push(batch);
 }
 
@@ -33,7 +33,7 @@ PIXI._returnBatch = function(batch)
  */
 PIXI._restoreBatchs = function(gl)
 {
-	for (var i=0; i < PIXI._batchs.length; i++) 
+	for (var i=0; i < PIXI._batchs.length; i++)
 	{
 	  PIXI._batchs[i].restoreLostContext(gl);
 	};
@@ -54,7 +54,7 @@ PIXI._restoreBatchs = function(gl)
 PIXI.WebGLBatch = function(gl)
 {
 	this.gl = gl;
-	console.warn("Creating WebGLBatch");
+
 	this.size = 0;
 
 	this.vertexBuffer =  gl.createBuffer();
@@ -79,7 +79,6 @@ PIXI.WebGLBatch.prototype.clean = function()
 	this.uvs = [];
 	this.indices = [];
 	this.colors = [];
-	//this.sprites = [];
 	this.dynamicSize = 1;
 	this.texture = null;
 	this.last = null;
@@ -109,14 +108,13 @@ PIXI.WebGLBatch.prototype.restoreLostContext = function(gl)
  * @method init
  * @param sprite {Sprite} the first sprite to be added to the batch. Only sprites with
  *		the same base texture and blend mode will be allowed to be added to this batch
- */	
+ */
 PIXI.WebGLBatch.prototype.init = function(sprite)
 {
 	sprite.batch = this;
 	this.dirty = true;
 	this.blendMode = sprite.blendMode;
 	this.texture = sprite.texture.baseTexture;
-//	this.sprites.push(sprite);
 	this.head = sprite;
 	this.tail = sprite;
 	this.size = 1;
@@ -130,7 +128,7 @@ PIXI.WebGLBatch.prototype.init = function(sprite)
  * @method insertBefore
  * @param sprite {Sprite} the sprite to be added
  * @param nextSprite {nextSprite} the first sprite will be inserted before this sprite
- */	
+ */
 PIXI.WebGLBatch.prototype.insertBefore = function(sprite, nextSprite)
 {
 	this.size++;
@@ -149,7 +147,6 @@ PIXI.WebGLBatch.prototype.insertBefore = function(sprite, nextSprite)
 	else
 	{
 		this.head = sprite;
-		//this.head.__prev = null
 	}
 }
 
@@ -159,7 +156,7 @@ PIXI.WebGLBatch.prototype.insertBefore = function(sprite, nextSprite)
  * @method insertAfter
  * @param sprite {Sprite} the sprite to be added
  * @param  previousSprite {Sprite} the first sprite will be inserted after this sprite
- */	
+ */
 PIXI.WebGLBatch.prototype.insertAfter = function(sprite, previousSprite)
 {
 	this.size++;
@@ -187,7 +184,7 @@ PIXI.WebGLBatch.prototype.insertAfter = function(sprite, previousSprite)
  *
  * @method remove
  * @param sprite {Sprite} the sprite to be removed
- */	
+ */
 PIXI.WebGLBatch.prototype.remove = function(sprite)
 {
 	this.size--;
@@ -237,7 +234,7 @@ PIXI.WebGLBatch.prototype.split = function(sprite)
 {
 	this.dirty = true;
 
-	var batch = new PIXI.WebGLBatch(this.gl);//PIXI._getBatch(this.gl);
+	var batch = new PIXI.WebGLBatch(this.gl);
 	batch.init(sprite);
 	batch.texture = this.texture;
 	batch.tail = this.tail;
@@ -247,8 +244,6 @@ PIXI.WebGLBatch.prototype.split = function(sprite)
 
 	sprite.__prev = null;
 	// return a splite batch!
-	//sprite.__prev.__next = null;
-	//sprite.__prev = null;
 
 	// TODO this size is wrong!
 	// need to recalculate :/ problem with a linked list!
@@ -273,7 +268,7 @@ PIXI.WebGLBatch.prototype.split = function(sprite)
  * Merges two batchs together
  *
  * @method merge
- * @param batch {WebGLBatch} the batch that will be merged 
+ * @param batch {WebGLBatch} the batch that will be merged
  */
 PIXI.WebGLBatch.prototype.merge = function(batch)
 {
@@ -318,22 +313,22 @@ PIXI.WebGLBatch.prototype.growBatch = function()
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER,this.verticies , gl.DYNAMIC_DRAW);
 
-	this.uvs  = new Float32Array( this.dynamicSize * 8 )  
+	this.uvs  = new Float32Array( this.dynamicSize * 8 );
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, this.uvs , gl.DYNAMIC_DRAW);
 
 	this.dirtyUVS = true;
 
-	this.colors  = new Float32Array( this.dynamicSize * 4 )  
+	this.colors  = new Float32Array( this.dynamicSize * 4 );
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, this.colors , gl.DYNAMIC_DRAW);
 
 	this.dirtyColors = true;
 
-	this.indices = new Uint16Array(this.dynamicSize * 6); 
+	this.indices = new Uint16Array(this.dynamicSize * 6);
 	var length = this.indices.length/6;
 
-	for (var i=0; i < length; i++) 
+	for (var i=0; i < length; i++)
 	{
 	    var index2 = i * 6;
 	    var index3 = i * 4;
@@ -386,7 +381,7 @@ PIXI.WebGLBatch.prototype.refresh = function()
 		this.uvs[index +3] = frame.y / th;
 
 		this.uvs[index +4] = (frame.x + frame.width) / tw;
-		this.uvs[index +5] = (frame.y + frame.height) / th; 
+		this.uvs[index +5] = (frame.y + frame.height) / th;
 
 		this.uvs[index +6] = frame.x / tw;
 		this.uvs[index +7] = (frame.y + frame.height) / th;
@@ -423,7 +418,7 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		if(displayObject.worldVisible)
+		if(displayObject.vcount === PIXI.visibleCount)
 		{
 			width = displayObject.texture.frame.width;
 			height = displayObject.texture.frame.height;
@@ -448,17 +443,17 @@ PIXI.WebGLBatch.prototype.update = function()
 			tx = worldTransform[2];
 			ty = worldTransform[5];
 
-			this.verticies[index + 0 ] = a * w1 + c * h1 + tx; 
+			this.verticies[index + 0 ] = a * w1 + c * h1 + tx;
 			this.verticies[index + 1 ] = d * h1 + b * w1 + ty;
 
-			this.verticies[index + 2 ] = a * w0 + c * h1 + tx; 
-			this.verticies[index + 3 ] = d * h1 + b * w0 + ty; 
+			this.verticies[index + 2 ] = a * w0 + c * h1 + tx;
+			this.verticies[index + 3 ] = d * h1 + b * w0 + ty;
 
-			this.verticies[index + 4 ] = a * w0 + c * h0 + tx; 
-			this.verticies[index + 5 ] = d * h0 + b * w0 + ty; 
+			this.verticies[index + 4 ] = a * w0 + c * h0 + tx;
+			this.verticies[index + 5 ] = d * h0 + b * w0 + ty;
 
-			this.verticies[index + 6] =  a * w1 + c * h0 + tx; 
-			this.verticies[index + 7] =  d * h0 + b * w1 + ty; 
+			this.verticies[index + 6] =  a * w1 + c * h0 + tx;
+			this.verticies[index + 7] =  d * h0 + b * w1 + ty;
 
 			if(displayObject.updateFrame || displayObject.texture.updateFrame)
 			{
@@ -477,7 +472,7 @@ PIXI.WebGLBatch.prototype.update = function()
 				this.uvs[index +3] = frame.y / th;
 
 				this.uvs[index +4] = (frame.x + frame.width) / tw;
-				this.uvs[index +5] = (frame.y + frame.height) / th; 
+				this.uvs[index +5] = (frame.y + frame.height) / th;
 
 				this.uvs[index +6] = frame.x / tw;
 				this.uvs[index +7] = (frame.y + frame.height) / th;
@@ -525,7 +520,7 @@ PIXI.WebGLBatch.prototype.update = function()
 PIXI.WebGLBatch.prototype.render = function(start, end)
 {
 	start = start || 0;
-	//end = end || this.size;
+
 	if(end == undefined)end = this.size;
 
 	if(this.dirty)
@@ -577,9 +572,8 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
 	// dont need to upload!
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
-	//var startIndex = 0//1;
 	var len = end - start;
-	// console.log(this.size)
+
     // DRAW THAT this!
     gl.drawElements(gl.TRIANGLES, len * 6, gl.UNSIGNED_SHORT, start * 2 * 6 );
 }

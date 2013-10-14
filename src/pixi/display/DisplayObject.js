@@ -50,7 +50,7 @@ PIXI.DisplayObject = function()
 	 *
 	 * @property alpha
 	 * @type Number
-	 */	
+	 */
 	this.alpha = 1;
 
 	/**
@@ -58,7 +58,7 @@ PIXI.DisplayObject = function()
 	 *
 	 * @property visible
 	 * @type Boolean
-	 */	
+	 */
 	this.visible = true;
 
 	/**
@@ -67,7 +67,7 @@ PIXI.DisplayObject = function()
 	 *
 	 * @property hitArea
 	 * @type Rectangle|Circle|Ellipse|Polygon
-	 */	
+	 */
 	this.hitArea = null;
 
 	/**
@@ -87,21 +87,12 @@ PIXI.DisplayObject = function()
 	this.renderable = false;
 
 	/**
-	 * [read-only] The visibility of the object based on world (parent) factors.
-	 *
-	 * @property worldVisible
-	 * @type Boolean
-	 * @readOnly
-	 */	
-	this.worldVisible = false;
-
-	/**
 	 * [read-only] The display object container that contains this display object.
 	 *
 	 * @property parent
 	 * @type DisplayObjectContainer
 	 * @readOnly
-	 */	
+	 */
 	this.parent = null;
 
 	/**
@@ -110,17 +101,8 @@ PIXI.DisplayObject = function()
 	 * @property stage
 	 * @type Stage
 	 * @readOnly
-	 */	
+	 */
 	this.stage = null;
-
-	/**
-	 * [read-only] The index of this object in the parent's `children` array
-	 *
-	 * @property childIndex
-	 * @type Number
-	 * @readOnly
-	 */	
-	this.childIndex = 0;
 
 	/**
 	 * [read-only] The multiplied alpha of the displayobject
@@ -260,17 +242,6 @@ PIXI.DisplayObject = function()
 // constructor
 PIXI.DisplayObject.prototype.constructor = PIXI.DisplayObject;
 
-//TODO make visible a getter setter
-/*
-Object.defineProperty(PIXI.DisplayObject.prototype, 'visible', {
-    get: function() {
-        return this._visible;
-    },
-    set: function(value) {
-        this._visible = value;
-    }
-});*/
-
 /**
  * [Deprecated] Indicates if the sprite will have touch and mouse interactivity. It is false by default
  * Instead of using this function you can now simply set the interactive property to true or false
@@ -297,7 +268,7 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'interactive', {
     },
     set: function(value) {
     	this._interactive = value;
-    	
+
     	// TODO more to be done here..
 		// need to sort out a re-crawl!
 		if(this.stage)this.stage.dirty = true;
@@ -317,9 +288,9 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'mask', {
         return this._mask;
     },
     set: function(value) {
-    	
+
         this._mask = value;
-        
+
         if(value)
         {
 	        this.addFilter(value)
@@ -342,78 +313,72 @@ PIXI.DisplayObject.prototype.addFilter = function(mask)
 {
 	if(this.filter)return;
 	this.filter = true;
-	
-	
+
 	// insert a filter block..
 	var start = new PIXI.FilterBlock();
 	var end = new PIXI.FilterBlock();
-	
-	
+
 	start.mask = mask;
 	end.mask = mask;
-	
+
 	start.first = start.last =  this;
 	end.first = end.last = this;
-	
+
 	start.open = true;
-	
+
 	/*
-	 * 
 	 * insert start
-	 * 
 	 */
-	
+
 	var childFirst = start
 	var childLast = start
 	var nextObject;
 	var previousObject;
-		
+
 	previousObject = this.first._iPrev;
-	
+
 	if(previousObject)
 	{
 		nextObject = previousObject._iNext;
 		childFirst._iPrev = previousObject;
-		previousObject._iNext = childFirst;		
+		previousObject._iNext = childFirst;
 	}
 	else
 	{
 		nextObject = this;
-	}	
-	
+	}
+
 	if(nextObject)
 	{
 		nextObject._iPrev = childLast;
 		childLast._iNext = nextObject;
 	}
-	
-	
+
+
 	// now insert the end filter block..
-	
+
 	/*
-	 * 
 	 * insert end filter
-	 * 
 	 */
 	var childFirst = end
 	var childLast = end
 	var nextObject = null;
 	var previousObject = null;
-		
+
 	previousObject = this.last;
 	nextObject = previousObject._iNext;
-	
+
 	if(nextObject)
 	{
 		nextObject._iPrev = childLast;
 		childLast._iNext = nextObject;
 	}
-	
+
 	childFirst._iPrev = previousObject;
-	previousObject._iNext = childFirst;	
-	
+	previousObject._iNext = childFirst;
+
 	var updateLast = this;
-	
+
 	var prevLast = this.last;
 	while(updateLast)
 	{
@@ -423,17 +388,17 @@ PIXI.DisplayObject.prototype.addFilter = function(mask)
 		}
 		updateLast = updateLast.parent;
 	}
-	
+
 	this.first = start;
-	
+
 	// if webGL...
 	if(this.__renderGroup)
 	{
 		this.__renderGroup.addFilterBlocks(start, end);
 	}
-	
+
 	mask.renderable = false;
-	
+
 }
 
 /*
@@ -446,32 +411,30 @@ PIXI.DisplayObject.prototype.removeFilter = function()
 {
 	if(!this.filter)return;
 	this.filter = false;
-	
+
 	// modify the list..
 	var startBlock = this.first;
-	
+
 	var nextObject = startBlock._iNext;
 	var previousObject = startBlock._iPrev;
-		
+
 	if(nextObject)nextObject._iPrev = previousObject;
-	if(previousObject)previousObject._iNext = nextObject;		
-	
+	if(previousObject)previousObject._iNext = nextObject;
+
 	this.first = startBlock._iNext;
-	
-	
+
+
 	// remove the end filter
 	var lastBlock = this.last;
-	
+
 	var nextObject = lastBlock._iNext;
 	var previousObject = lastBlock._iPrev;
-		
+
 	if(nextObject)nextObject._iPrev = previousObject;
-	previousObject._iNext = nextObject;		
-	
+	previousObject._iNext = nextObject;
+
 	// this is always true too!
-//	if(this.last == lastBlock)
-	//{
-	var tempLast =  lastBlock._iPrev;	
+	var tempLast =  lastBlock._iPrev;
 	// need to make sure the parents last is updated too
 	var updateLast = this;
 	while(updateLast.last == lastBlock)
@@ -480,16 +443,15 @@ PIXI.DisplayObject.prototype.removeFilter = function()
 		updateLast = updateLast.parent;
 		if(!updateLast)break;
 	}
-	
+
 	var mask = startBlock.mask
 	mask.renderable = true;
-	
+
 	// if webGL...
 	if(this.__renderGroup)
 	{
 		this.__renderGroup.removeFilterBlocks(startBlock, lastBlock);
 	}
-	//}
 }
 
 /*
@@ -501,13 +463,13 @@ PIXI.DisplayObject.prototype.removeFilter = function()
 PIXI.DisplayObject.prototype.updateTransform = function()
 {
 	// TODO OPTIMIZE THIS!! with dirty
-	if(this.rotation != this.rotationCache)
+	if(this.rotation !== this.rotationCache)
 	{
 		this.rotationCache = this.rotation;
 		this._sr =  Math.sin(this.rotation);
 		this._cr =  Math.cos(this.rotation);
-	}	
-	
+	}
+
 	var localTransform = this.localTransform;
 	var parentTransform = this.parent.worldTransform;
 	var worldTransform = this.worldTransform;
@@ -516,12 +478,12 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 	localTransform[1] = -this._sr * this.scale.y
 	localTransform[3] = this._sr * this.scale.x;
 	localTransform[4] = this._cr * this.scale.y;
-	
+
 	// TODO --> do we even need a local matrix???
-	
+
 	var px = this.pivot.x;
 	var py = this.pivot.y;
-   	
+
     // Cache the matrix values (makes for huge speed increases!)
     var a00 = localTransform[0], a01 = localTransform[1], a02 = this.position.x - localTransform[0] * px - py * localTransform[1],
         a10 = localTransform[3], a11 = localTransform[4], a12 = this.position.y - localTransform[4] * py - px * localTransform[3],
@@ -531,7 +493,7 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 
 	localTransform[2] = a02
 	localTransform[5] = a12
-	
+
     worldTransform[0] = b00 * a00 + b01 * a10;
     worldTransform[1] = b00 * a01 + b01 * a11;
     worldTransform[2] = b00 * a02 + b01 * a12 + b02;
@@ -543,6 +505,8 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 	// because we are using affine transformation, we can optimise the matrix concatenation process.. wooo!
 	// mat3.multiply(this.localTransform, this.parent.worldTransform, this.worldTransform);
 	this.worldAlpha = this.alpha * this.parent.worldAlpha;
+
+	this.vcount = PIXI.visibleCount;
 
 };
 
