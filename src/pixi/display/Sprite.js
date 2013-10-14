@@ -349,7 +349,6 @@ PIXI.Sprite.prototype._glDraw = function(batch, projection, extras)
 		this._updateVertices();
 
 		if (this._isCulled()) {
-			console.log("culled");
 			return;
 		}
 
