@@ -4333,7 +4333,7 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 
 // an instance of the gl context..
 // only one at the moment :/
-// PIXI.gl;
+PIXI.gl;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer

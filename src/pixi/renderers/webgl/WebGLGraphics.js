@@ -18,13 +18,13 @@ PIXI.WebGLGraphics = function()
  * @static
  * @private
  * @method renderGraphics
+ * @param renderer {WebGLRenderer}
  * @param graphics {Graphics}
  * @param projection {Object}
  */
-PIXI.WebGLGraphics.renderGraphics = function(graphics, projection)
+PIXI.WebGLGraphics.renderGraphics = function(renderer, graphics, projection)
 {
-	var gl = PIXI.gl;
-	
+	var gl = renderer.gl;
 	if(!graphics._webGL)graphics._webGL = {points:[], indices:[], lastIndex:0, 
 										   buffer:gl.createBuffer(),
 										   indexBuffer:gl.createBuffer()};
@@ -43,7 +43,7 @@ PIXI.WebGLGraphics.renderGraphics = function(graphics, projection)
 			
 		}
 		
-		PIXI.WebGLGraphics.updateGraphics(graphics);
+		PIXI.WebGLGraphics.updateGraphics(renderer, graphics);
 	}
 	
 	
@@ -88,10 +88,13 @@ PIXI.WebGLGraphics.renderGraphics = function(graphics, projection)
  * @static
  * @private
  * @method updateGraphics
+ * @param renderer {WebGLRenderer}
  * @param graphics {Graphics}
  */
-PIXI.WebGLGraphics.updateGraphics = function(graphics)
+PIXI.WebGLGraphics.updateGraphics = function(renderer, graphics)
 {
+	var gl = renderer.gl;
+	
 	for (var i=graphics._webGL.lastIndex; i < graphics.graphicsData.length; i++) 
 	{
 		var data = graphics.graphicsData[i];
@@ -121,8 +124,6 @@ PIXI.WebGLGraphics.updateGraphics = function(graphics)
 	
 	graphics._webGL.lastIndex = graphics.graphicsData.length;
 	
-	var gl = PIXI.gl;
-
 	graphics._webGL.glPoints = new Float32Array(graphics._webGL.points);
 	
 	gl.bindBuffer(gl.ARRAY_BUFFER, graphics._webGL.buffer);

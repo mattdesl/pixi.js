@@ -6,7 +6,7 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 
 // an instance of the gl context..
 // only one at the moment :/
-PIXI.gl;
+// PIXI.gl;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
@@ -41,7 +41,7 @@ PIXI.WebGLRenderer = function(width, height, view, transparent)
 	this.view.addEventListener('webglcontextrestored', function(event) { scope.handleContextRestored(event); }, false)
 
 	this.batchs = [];
-
+	
 	try 
  	{
         PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  {  	
@@ -65,7 +65,6 @@ PIXI.WebGLRenderer = function(width, height, view, transparent)
     var gl = this.gl;
     PIXI.WebGLRenderer.gl = gl;
 
-    this.batch = new PIXI.WebGLBatch(gl);
    	gl.disable(gl.DEPTH_TEST);
    	gl.disable(gl.CULL_FACE);
 
@@ -77,7 +76,9 @@ PIXI.WebGLRenderer = function(width, height, view, transparent)
     this.resize(this.width, this.height);
     this.contextLost = false;
 
-    this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl);
+	this.extras = new PIXI.WebGLExtras(gl);
+    this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
+    
 }
 
 // constructor
@@ -175,7 +176,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	//PIXI.projectionMatrix = this.projectionMatrix;
 	
 	this.stageRenderGroup.backgroundColor = stage.backgroundColorSplit;
-	this.stageRenderGroup.render(PIXI.projection);
+	this.stageRenderGroup.render(this, PIXI.projection);
 	
 	// interaction
 	// run interaction!

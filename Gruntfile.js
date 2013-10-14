@@ -5,6 +5,9 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-connect');
     grunt.loadNpmTasks('grunt-contrib-qunit');
     grunt.loadNpmTasks('grunt-contrib-yuidoc');
+    grunt.loadNpmTasks('grunt-contrib-watch');
+    grunt.loadNpmTasks('grunt-browserify');
+    grunt.loadNpmTasks('grunt-concat-sourcemap');
 
     var root = 'src/pixi/',
         debug = 'bin/pixi.dev.js',
@@ -32,8 +35,10 @@ module.exports = function(grunt) {
             '<%= dirs.src %>/utils/Polyk.js',
             '<%= dirs.src %>/renderers/webgl/WebGLShaders.js',
             '<%= dirs.src %>/renderers/webgl/WebGLGraphics.js',
+            '<%= dirs.src %>/renderers/webgl/WebGLExtras.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderer.js',
             '<%= dirs.src %>/renderers/webgl/WebGLBatch.js',
+            '<%= dirs.src %>/renderers/webgl/WebGLSpriteBatch.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderGroup.js',
             '<%= dirs.src %>/renderers/canvas/CanvasRenderer.js',
             '<%= dirs.src %>/renderers/canvas/CanvasGraphics.js',
@@ -91,6 +96,13 @@ module.exports = function(grunt) {
                 src: srcFiles,
                 dest: '<%= files.build %>'
             }
+        },
+        concat_sourcemap: {
+            dev: {
+                files: {
+                    'bin/pixi.debug.js': srcFiles
+                }
+            },
         },
         jshint: {
             beforeconcat: srcFiles,
@@ -161,9 +173,18 @@ module.exports = function(grunt) {
                     outdir: '<%= dirs.docs %>'
                 }
             }
+        },
+        watch: {
+            dev: {
+                files: ['src/**/*.js', 'examples/**/*.html'],
+                tasks: ['concat_sourcemap'],
+                options: {
+                    livereload: true
+                }
+            }
         }
-    });
-
+     });
+ 
     grunt.registerMultiTask(
         'distribute',
         'Copy built file to examples',

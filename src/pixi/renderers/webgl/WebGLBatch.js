@@ -54,7 +54,7 @@ PIXI._restoreBatchs = function(gl)
 PIXI.WebGLBatch = function(gl)
 {
 	this.gl = gl;
-	
+	console.warn("Creating WebGLBatch");
 	this.size = 0;
 
 	this.vertexBuffer =  gl.createBuffer();
@@ -551,7 +551,7 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
 	// update the uvs
    	gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
-
+   	
     if(this.dirtyUVS)
     {
     	this.dirtyUVS = false;

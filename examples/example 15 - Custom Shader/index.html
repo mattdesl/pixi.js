@@ -1,0 +1,67 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<title>pixi.js example 14 - Masking</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			background-color: #000000;
+		}
+	</style>
+	
+	<script src="../../bin/pixi.debug.js"></script>
+	<!-- Used for our LiveReload extension -->
+	<script src="http://localhost:35729/livereload.js"></script>
+</head>
+<body>
+	<script>
+	
+	// create an new instance of a pixi stage
+	var stage = new PIXI.Stage(0x66FF99);
+	
+	// create a renderer instance
+	var renderer = new PIXI.WebGLRenderer(400, 300);
+	renderer.setSingleBufferMode(); //renders everything in one buffer
+	
+	// add the renderer view element to the DOM
+	document.body.appendChild(renderer.view);
+	
+	requestAnimFrame( animate );
+	
+	// create a texture from an image path
+	var texture = PIXI.Texture.fromImage("bunny.png");
+	// create a new Sprite using the texture
+	var bunny = new PIXI.Sprite(texture);
+
+	 // new PIXI.WebGLSpriteBatch(PIXI.gl); 
+	
+	// center the sprites anchor point
+	// bunny.anchor.x = 0.5;
+	// bunny.anchor.y = 0.5;
+	
+	// // move the sprite t the center of the screen
+	bunny.position.x = 200;
+	bunny.position.y = 150;
+	
+	stage.addChild(bunny); 
+
+	var batch = new PIXI.WebGLSpriteBatch(PIXI.gl);
+	
+	function animate() {
+	
+	    requestAnimFrame( animate );
+
+
+	    // just for fun, lets rotate mr rabbit a little
+	    // bunny.rotation += 0.1;
+
+		
+	    // render the stage   
+	    renderer.render(stage);
+	}
+
+	</script>
+
+	</body>
+</html>
