@@ -6024,6 +6024,8 @@ PIXI.SpriteBatch = function(gl, size)
 	this.baseTexture = null; //NOTE: this is a BaseTexture
 }; 
 
+PIXI.SpriteBatch.totalRenderCalls = 0;
+
 // constructor
 PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
 
@@ -6088,6 +6090,8 @@ PIXI.SpriteBatch.prototype.flush = function()
 		return;
 
     var gl = this.gl;
+    
+    PIXI.SpriteBatch.totalRenderCalls++;
     
     //bind the current texture
     gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
