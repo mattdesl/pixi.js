@@ -250,3 +250,7 @@ PIXI.RenderTexture.prototype.renderCanvas = function(displayObject, position, cl
   //  PIXI.texturesToUpdate.push(this.baseTexture);
 }
 
+PIXI.RenderTexture.prototype.isShowing = function() {
+	return this.vcount == PIXI.visibleCount;
+};
+

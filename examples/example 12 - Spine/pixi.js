@@ -4696,7 +4696,11 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
  */
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
-	var worldVisible = renderable.isShowing();
+	var worldVisible = true;
+	if (renderable.isShowing)
+		worldVisible = renderable.isShowing();
+	else if (renderable.visible)
+		worldVisible = renderable.visible;
 	
 	if(renderable instanceof PIXI.TilingSprite)
 	{
@@ -4716,6 +4720,7 @@ PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 	}
 	else if(renderable instanceof PIXI.FilterBlock)
 	{
+		var gl = this.gl;
 		/*
 		 * for now only masks are supported..
 		 */
@@ -6309,6 +6314,7 @@ PIXI.WebGLRenderGroup = function(gl, extras)
 {
 	this.gl = gl;
 	this.root;
+	this.extras = extras;
 	
 	this.batchs = [];
 	this.toRemove = [];
@@ -10303,6 +10309,10 @@ PIXI.RenderTexture.prototype.renderCanvas = function(displayObject, position, cl
 
   //  PIXI.texturesToUpdate.push(this.baseTexture);
 }
+
+PIXI.RenderTexture.prototype.isShowing = function() {
+	return this.vcount == PIXI.visibleCount;
+};
 
 
 /**
