@@ -68,21 +68,23 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
  */
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
+	var worldVisible = renderable.vcount == PIXI.visibleCount;
+	
 	if(renderable instanceof PIXI.TilingSprite)
 	{
-		if(renderable.visible)this.renderTilingSprite(renderable, projection);
+		if(worldVisible)this.renderTilingSprite(renderable, projection);
 	}
 	else if(renderable instanceof PIXI.Strip)
 	{
-		if(renderable.visible)this.renderStrip(renderable, projection);
+		if(worldVisible)this.renderStrip(renderable, projection);
 	}
 	else if(renderable instanceof PIXI.CustomRenderable)
-	{
-		if(renderable.visible) renderable.renderWebGL(renderer, projection);
+	{ //vcount here???
+		if(worldVisible) renderable.renderWebGL(renderer, projection);
 	}
 	else if(renderable instanceof PIXI.Graphics)
 	{
-		if(renderable.visible && renderable.renderable) PIXI.WebGLGraphics.renderGraphics(renderer, renderable, projection);
+		if(worldVisible && renderable.renderable) PIXI.WebGLGraphics.renderGraphics(renderer, renderable, projection);
 	}
 	else if(renderable instanceof PIXI.FilterBlock)
 	{
