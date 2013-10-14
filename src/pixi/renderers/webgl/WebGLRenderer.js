@@ -6,7 +6,7 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 
 // an instance of the gl context..
 // only one at the moment :/
-PIXI.gl;
+// PIXI.gl;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
@@ -34,7 +34,7 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	this.width = width || 800;
 	this.height = height || 600;
 
-	this.view = view || document.createElement( 'canvas' ); 
+	this.view = view || document.createElement( 'canvas' );
     this.view.width = this.width;
 	this.view.height = this.height;
 
@@ -54,16 +54,16 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 
 	this.batchs = [];
 
-	try 
+	try
  	{
-        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  {  	
+        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  {
     		 alpha: this.transparent,
     		 antialias:!!antialias, // SPEED UP??
     		 premultipliedAlpha:false,
     		 stencil:true
         });
-    } 
-    catch (e) 
+    }
+    catch (e)
     {
     	throw new Error(" This browser does not support webGL. Try using the canvas renderer" + this);
     }
@@ -77,31 +77,87 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
     var gl = this.gl;
     PIXI.WebGLRenderer.gl = gl;
 
-    this.batch = new PIXI.WebGLBatch(gl);
    	gl.disable(gl.DEPTH_TEST);
    	gl.disable(gl.CULL_FACE);
 
     gl.enable(gl.BLEND);
-    gl.colorMask(true, true, true, this.transparent); 
+    gl.colorMask(true, true, true, this.transparent);
 
     PIXI.projection = new PIXI.Point(400, 300);
 
     this.resize(this.width, this.height);
     this.contextLost = false;
 
-    this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl);
+	this.extras = new PIXI.WebGLExtras(gl);
+
+	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
+    	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
+    else {
+    	this.spriteBatch = new PIXI.SpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    }
 }
 
 // constructor
 PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
 
 /**
- * Gets a new WebGLBatch from the pool
+ * A constant defining the BATCH_SIMPLE mode, which simply
+ * walks the scene graph and renders as much as we can in the same batch
+ * until it's time to flush (state change, texture switch, blend mode, etc).
+ * 
+ * @attribute SINGLE_BUFFER
+ * @readOnly
+ * @default  0
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
+
+/**
+ * A constant defining the BATCH_GROUPS mode, which tries
+ * to merge sprites with similar states to reduce batch flushes
+ * and improve performance. However, this doesn't work so well
+ * if you have a complex scene with a lot of nested relations,
+ * as it leads to many more batches being created.
+ * 
+ * @attribute BUFFER_GROUPS
+ * @readOnly
+ * @default  1
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_GROUPS = 1;
+
+/**
+ * Sets the batch mode that will be used the next time we initialize a WebGLRenderer,
+ * either PIXI.WebGLRenderer.BATCH_SIMPLE or PIXI.WebGLRenderer.BATCH_GROUPS.
+ *
+ * @attribute batchMode
+ * @static
+ * @param  {batchMode} batchMode
+ * @default PIXI.WebGLRenderer.BATCH_GROUPS
+ */
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
+PIXI.WebGLRenderer.batchSize = 500;
+
+PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
+{
+	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
+		this.stageRenderGroup.render(this, PIXI.projection);
+	} else {
+		this.spriteBatch.begin();
+		stage._glDraw(this.spriteBatch, projection, this.extras);
+		this.spriteBatch.end();
+	}
+};
+
+
+
+/**
+ * Gets a new WebGLBatch from the pool (assumes batchMode is groups)
  *
  * @static
  * @method getBatch
  * @return {WebGLBatch}
- * @private 
+ * @private
  */
 PIXI.WebGLRenderer.getBatch = function()
 {
@@ -125,7 +181,7 @@ PIXI.WebGLRenderer.getBatch = function()
  */
 PIXI.WebGLRenderer.returnBatch = function(batch)
 {
-	batch.clean();	
+	batch.clean();
 	PIXI._batchs.push(batch);
 }
 
@@ -147,10 +203,12 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		// TODO make this work
 		// dont think this is needed any more?
 		this.__stage = stage;
-		this.stageRenderGroup.setRenderable(stage);
+
+		if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
+			this.stageRenderGroup.setRenderable(stage);
 	}
-	
-	// TODO not needed now... 
+
+	// TODO not needed now...
 	// update children if need be
 	// best to remove first!
 	/*for (var i=0; i < stage.__childrenRemoved.length; i++)
@@ -159,28 +217,29 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		if(group)group.removeDisplayObject(stage.__childrenRemoved[i]);
 	}*/
 
-	// update any textures	
+	// update any textures
 	PIXI.WebGLRenderer.updateTextures();
-		
-	// update the scene graph	
+
+	// update the scene graph
 	PIXI.visibleCount++;
 	stage.updateTransform();
-	
+
 	var gl = this.gl;
-	
+
 	// -- Does this need to be set every frame? -- //
-	gl.colorMask(true, true, true, this.transparent); 
-	gl.viewport(0, 0, this.width, this.height);	
-	
+	gl.colorMask(true, true, true, this.transparent);
+	gl.viewport(0, 0, this.width, this.height);
+
    	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-		
-	gl.clearColor(stage.backgroundColorSplit[0],stage.backgroundColorSplit[1],stage.backgroundColorSplit[2], !this.transparent);     
+
+	gl.clearColor(stage.backgroundColorSplit[0],stage.backgroundColorSplit[1],stage.backgroundColorSplit[2], !this.transparent);
 	gl.clear(gl.COLOR_BUFFER_BIT);
 
 	// HACK TO TEST
-	
-	this.stageRenderGroup.backgroundColor = stage.backgroundColorSplit;
-	this.stageRenderGroup.render(PIXI.projection);
+	//PIXI.projectionMatrix = this.projectionMatrix;
+		
+	//renders batches with correct mode
+	this._renderStage(stage, PIXI.projection);
 	
 	// interaction
 	// run interaction!
@@ -193,15 +252,15 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			stage.interactionManager.setTarget(this);
 		}
 	}
-	
+
 	// after rendering lets confirm all frames that have been uodated..
 	if(PIXI.Texture.frameUpdates.length > 0)
 	{
-		for (var i=0; i < PIXI.Texture.frameUpdates.length; i++) 
+		for (var i=0; i < PIXI.Texture.frameUpdates.length; i++)
 		{
 		  	PIXI.Texture.frameUpdates[i].updateFrame = false;
 		};
-		
+
 		PIXI.Texture.frameUpdates = [];
 	}
 
@@ -236,7 +295,7 @@ PIXI.WebGLRenderer.updateTexture = function(texture)
 {
 	//TODO break this out into a texture manager...
 	var gl = PIXI.gl;
-	
+
 	if(!texture._glTexture)
 	{
 		texture._glTexture = gl.createTexture();
@@ -302,7 +361,7 @@ PIXI.WebGLRenderer.prototype.resize = function(width, height)
 	this.view.width = width;
 	this.view.height = height;
 
-	this.gl.viewport(0, 0, this.width, this.height);	
+	this.gl.viewport(0, 0, this.width, this.height);
 
 	//var projectionMatrix = this.projectionMatrix;
 
@@ -337,20 +396,20 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
  */
 PIXI.WebGLRenderer.prototype.handleContextRestored = function(event)
 {
-	this.gl = this.view.getContext("experimental-webgl",  {  	
+	this.gl = this.view.getContext("experimental-webgl",  {
 		alpha: true
     });
 
-	this.initShaders();	
+	this.initShaders();
 
-	for(var key in PIXI.TextureCache) 
+	for(var key in PIXI.TextureCache)
 	{
         	var texture = PIXI.TextureCache[key].baseTexture;
         	texture._glTexture = null;
         	PIXI.WebGLRenderer.updateTexture(texture);
 	};
 
-	for (var i=0; i <  this.batchs.length; i++) 
+	for (var i=0; i <  this.batchs.length; i++)
 	{
 		this.batchs[i].restoreLostContext(this.gl)//
 		this.batchs[i].dirty = true;

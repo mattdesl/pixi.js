@@ -6,14 +6,14 @@
 /**
  * This object is one that will allow you to specify custom rendering functions based on render type
  *
- * @class CustomRenderable 
+ * @class CustomRenderable
  * @extends DisplayObject
  * @constructor
  */
 PIXI.CustomRenderable = function()
 {
 	PIXI.DisplayObject.call( this );
-	
+
 }
 
 // constructor
@@ -48,7 +48,7 @@ PIXI.CustomRenderable.prototype.initWebGL = function(renderer)
  * @method renderWebGL
  * @param renderer {WebGLRenderer} The renderer instance
  */
-PIXI.CustomRenderable.prototype.renderWebGL = function(renderGroup, projectionMatrix)
+PIXI.CustomRenderable.prototype.renderWebGL = function(renderer, projectionMatrix)
 {
 	// not sure if both needed? but ya have for now!
 	// override!

@@ -22,7 +22,7 @@ PIXI.Sprite = function(texture)
 
 	/**
 	 * The anchor sets the origin point of the texture.
-	 * The default is 0,0 this means the textures origin is the top left 
+	 * The default is 0,0 this means the textures origin is the top left
 	 * Setting than anchor to 0.5,0.5 means the textures origin is centered
 	 * Setting the anchor to 1,1 would mean the textures origin points will be the bottom right
 	 *
@@ -126,7 +126,7 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 	// stop current texture;
 	if(this.texture.baseTexture != texture.baseTexture)
 	{
-		this.textureChange = true;	
+		this.textureChange = true;
 		this.texture = texture;
 	
 		if(this.__renderGroup)
@@ -155,18 +155,18 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 PIXI.Sprite.prototype.onTextureUpdate = function(event)
 {
 	//this.texture.removeEventListener( 'update', this.onTextureUpdateBind );
-	
+
 	// so if _width is 0 then width was not set..
 	if(this._width)this.scale.x = this._width / this.texture.frame.width;
 	if(this._height)this.scale.y = this._height / this.texture.frame.height;
-	
+
 	this.updateFrame = true;
 }
 
 // some helper functions..
 
 /**
- * 
+ *
  * Helper function that creates a sprite that will contain a texture from the TextureCache based on the frameId
  * The frame ids are created when a Texture packer file has been loaded
  *
@@ -183,7 +183,7 @@ PIXI.Sprite.fromFrame = function(frameId)
 }
 
 /**
- * 
+ *
  * Helper function that creates a sprite that will contain a texture based on an image url
  * If the image is not in the texture cache it will be loaded
  *
@@ -197,4 +197,21 @@ PIXI.Sprite.fromImage = function(imageId)
 	var texture = PIXI.Texture.fromImage(imageId);
 	return new PIXI.Sprite(texture);
 }
+
+
+PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
+{	
+	//don't draw anything if not visible!
+	if (!this.visible)
+		return;
+	if (this.texture && this.texture.baseTexture && this.texture.baseTexture._glTexture) {
+		//set new blend mode (this will flush batch if different)
+		batch.setBlendMode(this.blendMode);
+		//draw the object (batch will be flushed if the texture is different)
+		batch.drawDisplayObject(this);
+
+	}
+	//draw any children we might have in this sprite..
+	this._glDrawChildren(batch, projection, extras);
+};
 

@@ -10,9 +10,8 @@
  * @constructor
  * @param backgroundColor {Number} the background color of the stage, easiest way to pass this in is in hex format
  *		like: 0xFFFFFF for white
- * @param interactive {Boolean} enable / disable interaction (default is false)
  */
-PIXI.Stage = function(backgroundColor, interactive)
+PIXI.Stage = function(backgroundColor)
 {
 	PIXI.DisplayObjectContainer.call( this );
 
@@ -32,7 +31,7 @@ PIXI.Stage = function(backgroundColor, interactive)
 	 * @property interactive
 	 * @type Boolean
 	 */
-	this.interactive = interactive;
+	this.interactive = true;
 
 	/**
 	 * The interaction manage for this stage, manages all interactive activity on the stage
@@ -97,22 +96,22 @@ PIXI.Stage.prototype.setInteractionDelegate = function(domElement)
  */
 PIXI.Stage.prototype.updateTransform = function()
 {
-	this.worldAlpha = 1;		
+	this.worldAlpha = 1;
 	this.vcount = PIXI.visibleCount;
-	
+
 	for(var i=0,j=this.children.length; i<j; i++)
 	{
-		this.children[i].updateTransform();	
+		this.children[i].updateTransform();
 	}
-	
+
 	if(this.dirty)
 	{
 		this.dirty = false;
 		// update interactive!
 		this.interactionManager.dirty = true;
 	}
-	
-	
+
+
 	if(this.interactive)this.interactionManager.update();
 }
 
