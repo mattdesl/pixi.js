@@ -4686,9 +4686,6 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
  */
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
-	if (!renderable)
-		return;
-	
 	var worldVisible = renderable.isShowing();
 	
 	if(renderable instanceof PIXI.TilingSprite)
