@@ -1613,9 +1613,9 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(renderer, proje
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
 		if (renderer.extras.isExtra(c)) {
-			batch.end(); //stop the batch  
+			renderer.spriteBatch.end(); //stop the batch  
 			renderer.extras.render(renderer, c, projection);
-			batch.begin(projection); //start again after extra has been rendered
+			renderer.spriteBatch.begin(projection); //start again after extra has been rendered
 		} 
 		// console.log("Rendering ", c);
 
@@ -1729,7 +1729,7 @@ PIXI.Sprite = function(texture)
 	}
 
 	this.renderable = true;
-}
+};
 
 // constructor
 PIXI.Sprite.prototype = Object.create( PIXI.DisplayObjectContainer.prototype );
@@ -5007,14 +5007,16 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 
 	this.batchs = [];
 
+	this.contextOptions = {
+		 alpha: this.transparent,
+		 antialias: !!antialias, // SPEED UP??
+		 premultipliedAlpha:false,
+		 stencil:true
+    };
+
 	try
  	{
-        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  {
-    		 alpha: this.transparent,
-    		 antialias:!!antialias, // SPEED UP??
-    		 premultipliedAlpha:false,
-    		 stencil:true
-        });
+        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  this.contextOptions);
     }
     catch (e)
     {
@@ -5028,13 +5030,13 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
     PIXI.activateDefaultShader();
 
     var gl = this.gl;
+
+
+        
+
     PIXI.WebGLRenderer.gl = gl;
 
-   	gl.disable(gl.DEPTH_TEST);
-   	gl.disable(gl.CULL_FACE);
-
-    gl.enable(gl.BLEND);
-    gl.colorMask(true, true, true, this.transparent);
+    this.initializeGL();
 
     PIXI.projection = new PIXI.Point(400, 300);
 
@@ -5048,6 +5050,19 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
     else {
     	this.spriteBatch = new PIXI.SpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
+
+    //can simulate context loss in Chrome like so:
+    // this.view.onmousedown = function(ev) {
+    // 	//console.log(this.gl.getSupportedExtensions());
+    // 	var loseCtx = this.gl.getExtension("WEBGL_lose_context");
+    // 	console.log("killing context");
+    // 	loseCtx.loseContext();
+
+    // 	setTimeout(function() {
+    // 		console.log("restoring context...");
+    // 		loseCtx.restoreContext();
+    // 	}.bind(this), 1000);
+    // }.bind(this);
 }
 
 // constructor
@@ -5179,8 +5194,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	var gl = this.gl;
 
 	// -- Does this need to be set every frame? -- //
-	gl.colorMask(true, true, true, this.transparent);
-	gl.viewport(0, 0, this.width, this.height);
 
    	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -5325,6 +5338,23 @@ PIXI.WebGLRenderer.prototype.resize = function(width, height)
 }
 
 /**
+ * Init the default GL states.
+ */
+PIXI.WebGLRenderer.prototype.initializeGL = function()
+{
+	var gl = this.gl;
+   	gl.disable(gl.DEPTH_TEST);
+   	gl.disable(gl.CULL_FACE);
+
+    gl.enable(gl.BLEND);
+
+    //TODO: investigate -- why wouldn't we write to alpha channel?
+    gl.colorMask(true, true, true, this.transparent);
+	gl.viewport(0, 0, this.width, this.height);
+}
+
+
+/**
  * Handles a lost webgl context
  *
  * @method handleContextLost
@@ -5335,6 +5365,7 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
 {
 	event.preventDefault();
 	this.contextLost = true;
+	// console.warn("context lost");
 }
 
 /**
@@ -5343,14 +5374,17 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
  * @method handleContextRestored
  * @param event {Event}
  * @private
- */
+*/
 PIXI.WebGLRenderer.prototype.handleContextRestored = function(event)
 {
-	this.gl = this.view.getContext("experimental-webgl",  {
-		alpha: true
-    });
+	this.gl = this.view.getContext("experimental-webgl", this.contextOptions);
+    // console.warn("context restored");
 
-	this.initShaders();
+    PIXI.initPrimitiveShader();
+    PIXI.initDefaultShader();
+    PIXI.initDefaultStripShader();
+
+    this.initializeGL();
 
 	for(var key in PIXI.TextureCache)
 	{
@@ -5359,11 +5393,13 @@ PIXI.WebGLRenderer.prototype.handleContextRestored = function(event)
         	PIXI.WebGLRenderer.updateTexture(texture);
 	};
 
-	for (var i=0; i <  this.batchs.length; i++)
-	{
-		this.batchs[i].restoreLostContext(this.gl)//
-		this.batchs[i].dirty = true;
-	};
+	if (this.stageRenderGroup) {
+		this.stageRenderGroup.handleContextRestored(this.gl);
+	}
+
+	if (this.spriteBatch) {
+		this.spriteBatch.initialize(this.gl);
+	}
 
 	PIXI._restoreBatchs(this.gl);
 
@@ -5400,8 +5436,10 @@ PIXI._returnBatch = function(batch)
 	PIXI._batchs.push(batch);
 }
 
+////TODO: this seems no longer necessary?
 /**
  * @private
+ * @deprecated no longer needed with render groups..?
  */
 PIXI._restoreBatchs = function(gl)
 {
@@ -5472,6 +5510,23 @@ PIXI.WebGLBatch.prototype.restoreLostContext = function(gl)
 	this.indexBuffer =  gl.createBuffer();
 	this.uvBuffer =  gl.createBuffer();
 	this.colorBuffer =  gl.createBuffer();
+
+	//give the batches our last used data...
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER,this.verticies, gl.DYNAMIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.uvs , gl.DYNAMIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.colors , gl.DYNAMIC_DRAW);
+
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	this.dirtyUVS = true;
+	this.dirtyColors = true;
+	this.dirty = true;
 }
 
 /**
@@ -5767,7 +5822,7 @@ PIXI.WebGLBatch.prototype.refresh = function()
 
 		indexRun ++;
 	}
-
+	//TODO: we now need to re-initialize the buffers for context loss
 	this.dirtyUVS = true;
 	this.dirtyColors = true;
 }
@@ -6037,6 +6092,7 @@ PIXI.SpriteBatch = function(gl, size)
 
 PIXI.SpriteBatch.totalRenderCalls = 0;
 
+
 // constructor
 PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
 
@@ -6065,6 +6121,7 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 	//disable depth mask
 	gl.depthMask(false);
 
+
 	//activate texture0
 	gl.activeTexture(gl.TEXTURE0);
 
@@ -6076,6 +6133,10 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 
 	//premultiplied alpha
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+
+	//bind the element buffer
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
 
 	this.drawing = true;
 };
@@ -6354,7 +6415,7 @@ PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 
 	var gl = this.gl;
 
-
+	PIXI.activateDefaultShader(); //could be done elswhere, but this is needed for context restoration
 	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -6976,7 +7037,23 @@ PIXI.WebGLRenderGroup.prototype.removeObject = function(displayObject)
 		this.batchs.splice(index, 1);
 		if(batchToRemove instanceof PIXI.WebGLBatch)PIXI.WebGLRenderer.returnBatch(batchToRemove);
 	}
-}
+};
+
+/**
+ * Handles context restore by re-initializing all batches.
+ *
+ * @method handleContextRestored
+ * @param gl {GLContext} the new GL context to use
+ */
+PIXI.WebGLRenderGroup.prototype.handleContextRestored = function(gl)
+{
+	this.gl = gl;
+	for (var i=0; i <  this.batchs.length; i++)
+	{
+		this.batchs[i].restoreLostContext(this.gl)//
+		this.batchs[i].dirty = true;
+	};
+}; 
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
