@@ -20,7 +20,7 @@
 	// create an new instance of a pixi stage
 	var stage = new PIXI.Stage(0x66FF99);
 	
-	// PIXI.WebGLRenderer.batchMode = ;
+	// PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
 
 	// create a renderer instance
 	var renderer = new PIXI.WebGLRenderer(800, 600);
@@ -47,7 +47,7 @@
 	bunny.position.y = 150;
 	
 	var buttons = [];
-	// stage.addChild(bunny); 
+	stage.addChild(bunny); 
 
 	var buttonPositions = [175,75,
 						   600-145, 75,
@@ -64,7 +64,7 @@
 		button.position.x = buttonPositions[i*2];
 		button.position.y = buttonPositions[i*2 + 1];
 
-		// stage.addChild(button);
+		stage.addChild(button);
 		buttons.push(button);
 	}
 
@@ -90,7 +90,7 @@
 
 
 	    // just for fun, lets rotate mr rabbit a little
-	    // bunny.rotation += 0.1;
+	    bunny.rotation += 0.1;
 
 		
 	    // render the stage   
