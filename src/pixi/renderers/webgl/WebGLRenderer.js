@@ -230,8 +230,10 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	var gl = this.gl;
 
 	// -- Does this need to be set every frame? -- //
+ 	gl.colorMask(true, true, true, this.transparent);
+	gl.viewport(0, 0, this.width, this.height);
 
-   	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 	gl.clearColor(stage.backgroundColorSplit[0],stage.backgroundColorSplit[1],stage.backgroundColorSplit[2], !this.transparent);
 	gl.clear(gl.COLOR_BUFFER_BIT);
