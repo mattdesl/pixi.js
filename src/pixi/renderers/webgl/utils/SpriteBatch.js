@@ -33,7 +33,7 @@ PIXI.SpriteBatch = function(gl, size)
 		throw "Can't have more than 5460 sprites per batch: " + this.size;
 
 	//the total number of floats in our batch
-	var numVerts = this.size * 4 * PIXI.SpriteBatch.SPRITE_VERTEX_SIZE;
+	var numVerts = this.size * 4 * PIXI.Sprite.VERTEX_SIZE;
 	//the total number of indices in our batch
 	var numIndices = this.size * 6;
 
@@ -60,15 +60,14 @@ PIXI.SpriteBatch = function(gl, size)
 	//null means "use the default"
 	this.currentShader = null;
 
+	this.boundsCheck = true;
+
 	this.idx = 0;
 	this.drawing = false;
 	this.baseTexture = null; //NOTE: this is a BaseTexture
 }; 
 
 PIXI.SpriteBatch.totalRenderCalls = 0;
-
-//5 floats per vertex (position, UV, alpha)
-PIXI.SpriteBatch.SPRITE_VERTEX_SIZE = 5;
 
 // constructor
 PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
@@ -82,10 +81,12 @@ PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.SpriteBatch.prototype.begin = function(projection) 
+PIXI.SpriteBatch.prototype.begin = function(projection, bounds) 
 {
 	if (this.drawing)
 		throw "SpriteBatch.end() must be called before begin";
+
+	this.bounds = bounds;
 
 	//update any textures before trying to render..
 	PIXI.WebGLRenderer.updateTextures();
@@ -132,7 +133,7 @@ PIXI.SpriteBatch.prototype.flush = function()
 		return;
 
     var gl = this.gl;
-
+    
     PIXI.SpriteBatch.totalRenderCalls++;
     
     //bind the current texture
@@ -146,7 +147,7 @@ PIXI.SpriteBatch.prototype.flush = function()
 
 	//setup our vertex attributes
 	var shaderProgram = PIXI.shaderProgram;
-	var numComponents = PIXI.SpriteBatch.SPRITE_VERTEX_SIZE;
+	var numComponents = PIXI.Sprite.VERTEX_SIZE;
 	var stride = numComponents * 4;
 	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
 	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
@@ -161,14 +162,16 @@ PIXI.SpriteBatch.prototype.flush = function()
     this.idx = 0;
 };
 
+
+
 /**
  * Adds a single display object (with no children) to this batch.
  */
-PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject) 
+PIXI.SpriteBatch.prototype.drawSprite = function(sprite) 
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
-	var texture = displayObject.texture;
+	var texture = sprite.texture;
 
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -178,74 +181,115 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 		this.flush(); //we've reached our max, flush before pushing more data
 	}
 
-	// console.log(texture._glTexture);
+	var verts =	sprite._updateVertices();
+	 
+///TODO: loop ?
+	var off = 0;
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+}
 
-	var worldTransform, width, height, aX, aY, w0, w1, h0, h1;
-	var frame = texture.frame;
-	var tw = texture.baseTexture.width;
-	var th = texture.baseTexture.height;
-	var color = displayObject.worldAlpha;
+/**
+ * Adds a single set of vertices to this sprite batch (20 floats).
+ */
+PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off) 
+{
+	if (!this.drawing)
+		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+	
+	if (this.baseTexture != texture.baseTexture) {
+		//new texture.. flush previous data
+		this.flush();
+		this.baseTexture = texture.baseTexture;
+	} else if (this.idx == this.vertices.length) {
+		this.flush(); //we've reached our max, flush before pushing more data
+	}
 
-
-	//size of texture region
-	width = frame.width;
-	height = frame.height;
-
-	// TODO trim??
-	aX = displayObject.anchor.x;// - displayObject.texture.trim.x
-	aY = displayObject.anchor.y; //- displayObject.texture.trim.y
-	w0 = width * (1-aX);
-	w1 = width * -aX;
-
-	h0 = height * (1-aY);
-	h1 = height * -aY;
-
-	worldTransform = displayObject.worldTransform;
-
-	a = worldTransform[0];
-	b = worldTransform[3];
-	c = worldTransform[1];
-	d = worldTransform[4];
-	tx = worldTransform[2];
-	ty = worldTransform[5];
-	// console.log(a, b,c , d, tx, ty);
+	off = off || 0;
 
 	//xy
-	this.vertices[this.idx++] = a * w1 + c * h1 + tx; 
-	this.vertices[this.idx++] = d * h1 + b * w1 + ty;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = frame.x / tw;
-	this.vertices[this.idx++] = frame.y / th;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
-
+	this.vertices[this.idx++] = verts[off++];
 	//xy
-	this.vertices[this.idx++] = a * w0 + c * h1 + tx; 
-	this.vertices[this.idx++] = d * h1 + b * w0 + ty; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = (frame.x + frame.width) / tw;
-	this.vertices[this.idx++] = frame.y / th;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
-
+	this.vertices[this.idx++] = verts[off++];
 	//xy
-	this.vertices[this.idx++] = a * w0 + c * h0 + tx; 
-	this.vertices[this.idx++] = d * h0 + b * w0 + ty; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = (frame.x + frame.width) / tw;
-	this.vertices[this.idx++] = (frame.y + frame.height) / th; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
-
+	this.vertices[this.idx++] = verts[off++];
 	//xy
-	this.vertices[this.idx++] = a * w1 + c * h0 + tx; 
-	this.vertices[this.idx++] = d * h0 + b * w1 + ty; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = frame.x / tw;
-	this.vertices[this.idx++] = (frame.y + frame.height) / th;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
+	this.vertices[this.idx++] = verts[off++];
 };
+
+
+// PIXI.SpriteBatch.prototype._drawVertices = function(
+// 		baseTexture,
+// 		x1, y1, u1, v1, c1,
+// 		x2, y2, u2, v2, c2,
+// 		x3, y3, u3, v3, c3,
+// 		x4, y4, u4, v4, c4)  
+// {
+// 	if (!this.drawing)
+// 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+// 	if (this.baseTexture != baseTexture) {
+// 		//new texture.. flush previous data
+// 		this.flush();
+// 		this.baseTexture = texture.baseTexture;
+// 	} else if (this.idx == this.vertices.length) {
+// 		this.flush(); //we've reached our max, flush before pushing more data
+// 	}
+
+// };
 
 /**
  * Initializes the buffers, replacing the old ones, i.e. on context restoration.

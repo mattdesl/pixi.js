@@ -419,7 +419,19 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		if(displayObject.vcount === PIXI.visibleCount)
+		var showing = displayObject.isShowing();
+
+		if (showing && displayObject instanceof PIXI.Sprite 
+				&& displayObject.stage 
+				&& displayObject.stage.cullingRect 
+				&& displayObject.cullingEnabled) {
+			//TODO: use the values from _updateVertices below instead of recalc...
+			displayObject._updateVertices();
+			if (displayObject._isCulled())
+				continue;
+		}
+
+		if(showing)
 		{
 			width = displayObject.texture.frame.width;
 			height = displayObject.texture.frame.height;

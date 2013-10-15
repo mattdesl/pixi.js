@@ -1206,6 +1206,13 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 
 PIXI.visibleCount = 0;
 
+PIXI.DisplayObject.prototype.isShowing = function()
+{
+	if (this.vcount !== PIXI.visibleCount)
+		return false;
+	return true;
+} 
+
 //To avoid recursion in WebGLRenderer we'll define the methods here...
 PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
 {
@@ -1686,6 +1693,30 @@ PIXI.Sprite = function(texture)
 	 */
 	this._height = 0;
 
+	/**
+	 * Holds vertex information; maybe at a later point this will be cached
+	 * with a dirty flag. 
+	 * 
+	 * @property _vertices
+	 * @type {Float32Array}
+	 * @private
+	 */
+	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+
+	/**
+	 * If true, we will attempt to cull this sprite and its children if it's
+	 * transformed quad lies outside of the stage bounds. This requires
+	 * stage.cullingRect to be set (a Rectangle object). Right now this
+	 * only supports axis-aligned rectangles, so if your sprite is a massive
+	 * and rotated box that is much larger than the stage, but *should* intersect
+	 * it, the culling might not work as expected. In that case, you can set
+	 * cullingEnabled to false.
+	 * 
+	 * @property cullingEnabled
+	 * @type {Boolean}
+	 */
+	this.cullingEnabled = true;
+
 	if(texture.baseTexture.hasLoaded)
 	{
 		this.updateFrame = true;
@@ -1702,6 +1733,8 @@ PIXI.Sprite = function(texture)
 // constructor
 PIXI.Sprite.prototype = Object.create( PIXI.DisplayObjectContainer.prototype );
 PIXI.Sprite.prototype.constructor = PIXI.Sprite;
+
+PIXI.Sprite.VERTEX_SIZE = 5;
 
 /**
  * The width of the sprite, setting this will actually modify the scale to acheive the value set
@@ -1819,22 +1852,148 @@ PIXI.Sprite.fromImage = function(imageId)
 }
 
 
+
+PIXI.Sprite.prototype._updateVertices = function() {
+	//TODO: cache; when a container moves/rotates flag its children as dirty
+	var texture = this.texture;
+	var frame = texture.frame;
+	var tw = texture.baseTexture.width;
+	var th = texture.baseTexture.height;
+	
+	var worldTransform, width, height, aX, aY, w0, w1, h0, h1;
+	var color = this.worldAlpha;
+
+	//size of texture region
+	width = frame.width;
+	height = frame.height;
+
+	// TODO trim??
+	aX = this.anchor.x;// - displayObject.texture.trim.x
+	aY = this.anchor.y; //- displayObject.texture.trim.y
+	w0 = width * (1-aX);
+	w1 = width * -aX;
+
+	h0 = height * (1-aY);
+	h1 = height * -aY;
+
+	worldTransform = this.worldTransform;
+
+	a = worldTransform[0];
+	b = worldTransform[3];
+	c = worldTransform[1];
+	d = worldTransform[4];
+	tx = worldTransform[2];
+	ty = worldTransform[5];
+	
+	var x1, x2, x3, x4,
+		y1, y2, y3, y4;
+
+	x1 = a * w1 + c * h1 + tx;
+	y1 = d * h1 + b * w1 + ty;
+	x2 = a * w0 + c * h1 + tx; 
+	y2 = d * h1 + b * w0 + ty; 
+	x3 = a * w0 + c * h0 + tx; 
+	y3 = d * h0 + b * w0 + ty; 
+	x4 = a * w1 + c * h0 + tx; 
+	y4 = d * h0 + b * w1 + ty; 
+
+	//xy
+	var idx = 0, out = this._vertices;
+	out[idx++] = x1; 
+	out[idx++] = y1;
+	//uv
+	out[idx++] = frame.x / tw;
+	out[idx++] = frame.y / th;
+	//color
+	out[idx++] = color;
+
+	//xy
+	out[idx++] = x2;
+	out[idx++] = y2;
+	//uv
+	out[idx++] = (frame.x + frame.width) / tw;
+	out[idx++] = frame.y / th;
+	//color
+	out[idx++] = color;
+
+	//xy
+	out[idx++] = x3;
+	out[idx++] = y3;
+	//uv
+	out[idx++] = (frame.x + frame.width) / tw;
+	out[idx++] = (frame.y + frame.height) / th; 
+	//color
+	out[idx++] = color;
+
+	//xy
+	out[idx++] = x4;
+	out[idx++] = y4;
+	//uv
+	out[idx++] = frame.x / tw;
+	out[idx++] = (frame.y + frame.height) / th;
+	//color
+	out[idx++] = color;
+	return out;
+};
+
+//must be called after _updateVertices()
+//returns false if stage does not exist, or culling is disabled/not set
+PIXI.Sprite.prototype._isCulled = function() 
+{
+	//TODO: cache the result
+	//		and let users access with isShowing()
+		
+	if (!this.stage || !this.stage.cullingRect || !this.cullingEnabled)
+		return false;
+
+	var b = this.stage.cullingRect;
+
+	var x1 = this._vertices[0];
+	var y1 = this._vertices[1];
+
+	var x2 = this._vertices[5];
+	var y2 = this._vertices[6];
+
+	var x3 = this._vertices[10];
+	var y3 = this._vertices[11];
+
+	var x4 = this._vertices[15];
+	var y4 = this._vertices[16];
+
+	var minX = Math.min(x1, x2, x3, x4);
+	var minY = Math.min(y1, y2, y3, y4);
+	var maxX = Math.max(x1, x2, x3, x4);
+	var maxY = Math.max(y1, y2, y3, y4);
+
+	return !(minX <= (b.x + b.width) &&
+          b.x <= maxX &&
+          minY <= (b.y + b.height) &&
+          b.y <= maxY);
+};
+
 PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
 {	
 	//don't draw anything if not visible!
-	if (!this.visible)
+	if (!this.isShowing())
 		return;
 	if (this.texture && this.texture.baseTexture && this.texture.baseTexture._glTexture) {
+
+		this._updateVertices();
+
+		if (this._isCulled()) {
+			return;
+		}
+
+
 		//set new blend mode (this will flush batch if different)
 		batch.setBlendMode(this.blendMode);
 		//draw the object (batch will be flushed if the texture is different)
-		batch.drawDisplayObject(this);
+		batch.drawVertices(this.texture, this._vertices, 0);
 
 	}
 	//draw any children we might have in this sprite..
 	this._glDrawChildren(batch, projection, extras);
 };
-
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -3256,6 +3415,9 @@ PIXI.Stage = function(backgroundColor)
 	//optimize hit detection a bit
 	this.stage.hitArea = new PIXI.Rectangle(0,0,100000, 100000);
 
+	//Bounds can be used to cull sprites whose bounding boxes lie outside of the stage bounds
+	this.cullingRect = null;
+	
 	this.setBackgroundColor(backgroundColor);
 	this.worldVisible = true;
 }
@@ -5985,7 +6147,7 @@ PIXI.SpriteBatch = function(gl, size)
 		throw "Can't have more than 5460 sprites per batch: " + this.size;
 
 	//the total number of floats in our batch
-	var numVerts = this.size * 4 * PIXI.SpriteBatch.SPRITE_VERTEX_SIZE;
+	var numVerts = this.size * 4 * PIXI.Sprite.VERTEX_SIZE;
 	//the total number of indices in our batch
 	var numIndices = this.size * 6;
 
@@ -6012,15 +6174,14 @@ PIXI.SpriteBatch = function(gl, size)
 	//null means "use the default"
 	this.currentShader = null;
 
+	this.boundsCheck = true;
+
 	this.idx = 0;
 	this.drawing = false;
 	this.baseTexture = null; //NOTE: this is a BaseTexture
 }; 
 
 PIXI.SpriteBatch.totalRenderCalls = 0;
-
-//5 floats per vertex (position, UV, alpha)
-PIXI.SpriteBatch.SPRITE_VERTEX_SIZE = 5;
 
 // constructor
 PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
@@ -6034,10 +6195,12 @@ PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.SpriteBatch.prototype.begin = function(projection) 
+PIXI.SpriteBatch.prototype.begin = function(projection, bounds) 
 {
 	if (this.drawing)
 		throw "SpriteBatch.end() must be called before begin";
+
+	this.bounds = bounds;
 
 	//update any textures before trying to render..
 	PIXI.WebGLRenderer.updateTextures();
@@ -6084,7 +6247,7 @@ PIXI.SpriteBatch.prototype.flush = function()
 		return;
 
     var gl = this.gl;
-
+    
     PIXI.SpriteBatch.totalRenderCalls++;
     
     //bind the current texture
@@ -6098,7 +6261,7 @@ PIXI.SpriteBatch.prototype.flush = function()
 
 	//setup our vertex attributes
 	var shaderProgram = PIXI.shaderProgram;
-	var numComponents = PIXI.SpriteBatch.SPRITE_VERTEX_SIZE;
+	var numComponents = PIXI.Sprite.VERTEX_SIZE;
 	var stride = numComponents * 4;
 	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
 	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
@@ -6113,14 +6276,16 @@ PIXI.SpriteBatch.prototype.flush = function()
     this.idx = 0;
 };
 
+
+
 /**
  * Adds a single display object (with no children) to this batch.
  */
-PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject) 
+PIXI.SpriteBatch.prototype.drawSprite = function(sprite) 
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
-	var texture = displayObject.texture;
+	var texture = sprite.texture;
 
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -6130,74 +6295,115 @@ PIXI.SpriteBatch.prototype.drawDisplayObject = function(displayObject)
 		this.flush(); //we've reached our max, flush before pushing more data
 	}
 
-	// console.log(texture._glTexture);
+	var verts =	sprite._updateVertices();
+	 
+///TODO: loop ?
+	var off = 0;
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+}
 
-	var worldTransform, width, height, aX, aY, w0, w1, h0, h1;
-	var frame = texture.frame;
-	var tw = texture.baseTexture.width;
-	var th = texture.baseTexture.height;
-	var color = displayObject.worldAlpha;
+/**
+ * Adds a single set of vertices to this sprite batch (20 floats).
+ */
+PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off) 
+{
+	if (!this.drawing)
+		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+	
+	if (this.baseTexture != texture.baseTexture) {
+		//new texture.. flush previous data
+		this.flush();
+		this.baseTexture = texture.baseTexture;
+	} else if (this.idx == this.vertices.length) {
+		this.flush(); //we've reached our max, flush before pushing more data
+	}
 
-
-	//size of texture region
-	width = frame.width;
-	height = frame.height;
-
-	// TODO trim??
-	aX = displayObject.anchor.x;// - displayObject.texture.trim.x
-	aY = displayObject.anchor.y; //- displayObject.texture.trim.y
-	w0 = width * (1-aX);
-	w1 = width * -aX;
-
-	h0 = height * (1-aY);
-	h1 = height * -aY;
-
-	worldTransform = displayObject.worldTransform;
-
-	a = worldTransform[0];
-	b = worldTransform[3];
-	c = worldTransform[1];
-	d = worldTransform[4];
-	tx = worldTransform[2];
-	ty = worldTransform[5];
-	// console.log(a, b,c , d, tx, ty);
+	off = off || 0;
 
 	//xy
-	this.vertices[this.idx++] = a * w1 + c * h1 + tx; 
-	this.vertices[this.idx++] = d * h1 + b * w1 + ty;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = frame.x / tw;
-	this.vertices[this.idx++] = frame.y / th;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
-
+	this.vertices[this.idx++] = verts[off++];
 	//xy
-	this.vertices[this.idx++] = a * w0 + c * h1 + tx; 
-	this.vertices[this.idx++] = d * h1 + b * w0 + ty; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = (frame.x + frame.width) / tw;
-	this.vertices[this.idx++] = frame.y / th;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
-
+	this.vertices[this.idx++] = verts[off++];
 	//xy
-	this.vertices[this.idx++] = a * w0 + c * h0 + tx; 
-	this.vertices[this.idx++] = d * h0 + b * w0 + ty; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = (frame.x + frame.width) / tw;
-	this.vertices[this.idx++] = (frame.y + frame.height) / th; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
-
+	this.vertices[this.idx++] = verts[off++];
 	//xy
-	this.vertices[this.idx++] = a * w1 + c * h0 + tx; 
-	this.vertices[this.idx++] = d * h0 + b * w1 + ty; 
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//uv
-	this.vertices[this.idx++] = frame.x / tw;
-	this.vertices[this.idx++] = (frame.y + frame.height) / th;
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
 	//color
-	this.vertices[this.idx++] = color;
+	this.vertices[this.idx++] = verts[off++];
 };
+
+
+// PIXI.SpriteBatch.prototype._drawVertices = function(
+// 		baseTexture,
+// 		x1, y1, u1, v1, c1,
+// 		x2, y2, u2, v2, c2,
+// 		x3, y3, u3, v3, c3,
+// 		x4, y4, u4, v4, c4)  
+// {
+// 	if (!this.drawing)
+// 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+// 	if (this.baseTexture != baseTexture) {
+// 		//new texture.. flush previous data
+// 		this.flush();
+// 		this.baseTexture = texture.baseTexture;
+// 	} else if (this.idx == this.vertices.length) {
+// 		this.flush(); //we've reached our max, flush before pushing more data
+// 	}
+
+// };
 
 /**
  * Initializes the buffers, replacing the old ones, i.e. on context restoration.
