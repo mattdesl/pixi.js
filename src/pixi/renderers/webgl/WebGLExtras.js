@@ -294,18 +294,26 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 	var scaleX =  (sprite.width / sprite.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (sprite.height / sprite.texture.baseTexture.height) / tileScale.y;
 
-	sprite.uvs[0] = 0 - offsetX;
-	sprite.uvs[1] = 0 - offsetY;
+	var u1 = this.flipX ? ((1 * scaleX) - offsetX) : 0 - offsetX;
+	var u2 = this.flipX ? 0 - offsetX : ((1 * scaleX) - offsetX);
+
+	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
+	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
+
+	//TODO: change vertices for size...
+
+	sprite.uvs[0] = u1;
+	sprite.uvs[1] = v1;
 	
-	sprite.uvs[2] = (1 * scaleX)  -offsetX;
-	sprite.uvs[3] = 0 - offsetY;
+	sprite.uvs[2] = u2;
+	sprite.uvs[3] = v1;
 	
-	sprite.uvs[4] = (1 *scaleX) - offsetX;
-	sprite.uvs[5] = (1 *scaleY) - offsetY;
+	sprite.uvs[4] = u2;
+	sprite.uvs[5] = v2;
 	
-	sprite.uvs[6] = 0 - offsetX;
-	sprite.uvs[7] = (1 *scaleY) - offsetY;
-	
+	sprite.uvs[6] = u1;
+	sprite.uvs[7] = v2;
+
 	gl.bindBuffer(gl.ARRAY_BUFFER, sprite._uvBuffer);
 	gl.bufferSubData(gl.ARRAY_BUFFER, 0, sprite.uvs)
 	
