@@ -5118,18 +5118,26 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 	var scaleX =  (sprite.width / sprite.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (sprite.height / sprite.texture.baseTexture.height) / tileScale.y;
 
-	sprite.uvs[0] = 0 - offsetX;
-	sprite.uvs[1] = 0 - offsetY;
+	var u1 = this.flipX ? ((1 * scaleX) - offsetX) : 0 - offsetX;
+	var u2 = this.flipX ? 0 - offsetX : ((1 * scaleX) - offsetX);
+
+	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
+	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
+
+	//TODO: change vertices for size...
+
+	sprite.uvs[0] = u1;
+	sprite.uvs[1] = v1;
 	
-	sprite.uvs[2] = (1 * scaleX)  -offsetX;
-	sprite.uvs[3] = 0 - offsetY;
+	sprite.uvs[2] = u2;
+	sprite.uvs[3] = v1;
 	
-	sprite.uvs[4] = (1 *scaleX) - offsetX;
-	sprite.uvs[5] = (1 *scaleY) - offsetY;
+	sprite.uvs[4] = u2;
+	sprite.uvs[5] = v2;
 	
-	sprite.uvs[6] = 0 - offsetX;
-	sprite.uvs[7] = (1 *scaleY) - offsetY;
-	
+	sprite.uvs[6] = u1;
+	sprite.uvs[7] = v2;
+
 	gl.bindBuffer(gl.ARRAY_BUFFER, sprite._uvBuffer);
 	gl.bufferSubData(gl.ARRAY_BUFFER, 0, sprite.uvs)
 	
@@ -8608,21 +8616,26 @@ PIXI.TilingSprite.prototype._updateVertices = function() {
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
  	
-	out[2] = 0 - offsetX;
-	out[3] = 0 - offsetY;
+	var u1 = this.flipX ? ((1 * scaleX) - offsetX) : 0 - offsetX;
+	var u2 = this.flipX ? 0 - offsetX : ((1 * scaleX) - offsetX);
+
+	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
+	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
+
+	out[2] = u1;
+	out[3] = v1;
 	
-	out[7] = (1 * scaleX)  -offsetX;
-	out[8] = 0 - offsetY;
+	out[7] = u2;
+	out[8] = v1;
 	
-	out[12] = (1 *scaleX) - offsetX;
-	out[13] = (1 *scaleY) - offsetY;
+	out[12] = u2;
+	out[13] = v2;
 	
-	out[17] = 0 - offsetX;
-	out[18] = (1 *scaleY) - offsetY;
+	out[17] = u1;
+	out[18] = v2;
 
 	return out;
 };
-
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
  * based on pixi impact spine implementation made by Eemeli Kelokorpi (@ekelokorpi) https://github.com/ekelokorpi

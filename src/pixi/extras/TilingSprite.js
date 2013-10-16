@@ -151,17 +151,23 @@ PIXI.TilingSprite.prototype._updateVertices = function() {
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
  	
-	out[2] = 0 - offsetX;
-	out[3] = 0 - offsetY;
+	var u1 = this.flipX ? ((1 * scaleX) - offsetX) : 0 - offsetX;
+	var u2 = this.flipX ? 0 - offsetX : ((1 * scaleX) - offsetX);
+
+	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
+	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
+
+	out[2] = u1;
+	out[3] = v1;
 	
-	out[7] = (1 * scaleX)  -offsetX;
-	out[8] = 0 - offsetY;
+	out[7] = u2;
+	out[8] = v1;
 	
-	out[12] = (1 *scaleX) - offsetX;
-	out[13] = (1 *scaleY) - offsetY;
+	out[12] = u2;
+	out[13] = v2;
 	
-	out[17] = 0 - offsetX;
-	out[18] = (1 *scaleY) - offsetY;
+	out[17] = u1;
+	out[18] = v2;
 
 	return out;
 };
