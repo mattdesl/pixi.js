@@ -146,18 +146,30 @@ PIXI.MovieClip.prototype.updateTransform = function()
 	PIXI.Sprite.prototype.updateTransform.call(this);
 
 	if(!this.playing)return;
+	
+	this.currentFrame += this.animationSpeed * this.stage.time.timeScale;
 
-	this.currentFrame += this.animationSpeed;
-
-	var round = (this.currentFrame + 0.5) | 0;
-
+	var round = Math.round( this.currentFrame );
+	
 	if(this.loop || round < this.textures.length)
 	{
-		this.setTexture(this.textures[round % this.textures.length]);
+		var nFrame = round % this.textures.length;
+
+		if( nFrame < 0 ) {
+
+			nFrame += this.textures.length;
+		}
+
+		this.setTexture( this.textures[ nFrame ] );
+	}
+	else if(round <= 0 ) 
+	{
+		this.gotoAndStop( 0 );
 	}
 	else if(round >= this.textures.length)
 	{
 		this.gotoAndStop(this.textures.length - 1);
+
 		if(this.onComplete)
 		{
 			this.onComplete();
