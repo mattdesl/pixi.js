@@ -179,6 +179,10 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 	var texture = sprite.texture;
 
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
+
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
 		this.flush();
@@ -233,6 +237,10 @@ PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off)
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
+	
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
 	
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
