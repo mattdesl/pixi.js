@@ -185,26 +185,8 @@ module.exports = function(grunt) {
         }
      });
  
-    grunt.registerMultiTask(
-        'distribute',
-        'Copy built file to examples',
-        function(){
-            var pixi = grunt.file.read( debug );
-
-            var dests = this.data;
-
-            dests.forEach(function(filepath){
-
-                grunt.file.write(filepath + '/pixi.js', pixi);
-
-            });
-
-            grunt.log.writeln('Pixi copied to examples.');
-        }
-    )
-
-    grunt.registerTask('default', ['concat_sourcemap', 'uglify', 'distribute']);
-    grunt.registerTask('build', ['concat_sourcemap', 'uglify', 'distribute']);
+    grunt.registerTask('default', ['concat_sourcemap', 'uglify']);
+    grunt.registerTask('build', ['concat_sourcemap', 'uglify']);
     grunt.registerTask('test', ['build', 'connect:qunit', 'qunit']);
     grunt.registerTask('docs', ['yuidoc']);
 
