@@ -391,13 +391,13 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(renderer, proje
 
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
-		if (renderer.extras.isExtra(c)) {
+		if (!(c instanceof PIXI.TilingSprite) && renderer.extras.isExtra(c)) { //TODO: fix this hack for TilingSprite
 			renderer.spriteBatch.end(); //stop the batch  
 			renderer.extras.render(renderer, c, projection);
 			renderer.spriteBatch.begin(projection); //start again after extra has been rendered
 		} 
 		// console.log("Rendering ", c);
-
+		
 		//now we draw it like any other DisplayObject, incase it has some children
 		c._glDraw(renderer, projection);
 	}

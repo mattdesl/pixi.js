@@ -28,7 +28,6 @@ PIXI.WebGLExtras.prototype.isExtra = function(displayObject) {
 PIXI.WebGLExtras.prototype.init = function(displayObject) {
 	if(displayObject instanceof PIXI.TilingSprite)
 	{
-		
 		// add to a batch!!
 		this.initTilingSprite(displayObject);
 	//	this.batchs.push(displayObject);
@@ -167,7 +166,7 @@ PIXI.WebGLExtras.prototype.initTilingSprite = function(sprite)
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sprite.indices, gl.STATIC_DRAW);
     
 //    return ( (x > 0) && ((x & (x - 1)) == 0) );
-
+	
 	if(sprite.texture.baseTexture._glTexture)
 	{
     	gl.bindTexture(gl.TEXTURE_2D, sprite.texture.baseTexture._glTexture);

@@ -82,12 +82,20 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
-    	this.spriteBatch = new PIXI.SpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
-
+ 
     //can simulate context loss in Chrome like so:
     // this.view.onmousedown = function(ev) {
-    // 	//console.log(this.gl.getSupportedExtensions());
+    	// console.dir(this.gl.getSupportedExtensions());
+  //   	var ext = (
+  //   		gl.getExtension("WEBGL_scompressed_texture_s3tc")
+		//   // gl.getExtension("WEBGL_compressed_texture_s3tc") ||
+		//   // gl.getExtension("MOZ_WEBGL_compressed_texture_s3tc") ||
+		//   // gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc")
+		// );
+		// console.dir(ext);
+
     // 	var loseCtx = this.gl.getExtension("WEBGL_lose_context");
     // 	console.log("killing context");
     // 	loseCtx.loseContext();

@@ -221,7 +221,7 @@ PIXI.Sprite.fromImage = function(imageId)
 	return new PIXI.Sprite(texture);
 }
 
-PIXI.Sprite.prototype._updateVertices = function() {
+PIXI.Sprite.prototype._updateVertices = function(width, height) {
 	//TODO: cache; when a container moves/rotates flag its children as dirty
 	var texture = this.texture;
 	var frame = texture.frame;
@@ -232,8 +232,8 @@ PIXI.Sprite.prototype._updateVertices = function() {
 	var color = this.worldAlpha;
 
 	//size of texture region
-	width = frame.width;
-	height = frame.height;
+	width = width || frame.width;
+	height = height || frame.height;
 
 	// TODO trim??
 	aX = this.anchor.x;// - displayObject.texture.trim.x
@@ -339,6 +339,22 @@ PIXI.Sprite.prototype._isCulled = function()
           b.y <= maxY);
 };
 
+
+//pass function "renderFunc"
+//call like so: renderFunc( this )  => passing the sprite
+//on GL side:
+//   renderFunc(sprite)
+//   	spriteBatch.setBlendMode(sprite.blendMode);
+//   	spriteBatch.drawSprite(sprite)
+//on canvas side:
+//	 renderFunc(sprite)
+//	 	... trololo ..
+//	 	
+//	not really good for many different render types though !!
+//	using CustomRenderer type of thing would be better
+//	or a mix... allow generic renderable to draw with SpriteBatch
+//	OR allow them to perform custom draw ops?
+
 PIXI.Sprite.prototype._glDraw = function(renderer, projection) 
 {	
 	//don't draw anything if not visible!
@@ -363,3 +379,44 @@ PIXI.Sprite.prototype._glDraw = function(renderer, projection)
 	this._glDrawChildren(renderer, projection);
 };
 
+
+PIXI.Sprite.prototype._canvasDraw = function(renderer, projection) 
+{	
+	//don't draw anything if not visible!
+	if (!this.isShowing())
+		return;
+	if (this.texture && this.texture.baseTexture && this.texture.baseTexture._glTexture) {
+		
+		this._updateVertices();
+
+		if (this._isCulled()) {
+			return;
+		}
+
+
+		//set new blend mode (this will flush batch if different)
+		//....
+		
+		//draw the object (batch will be flushed if the texture is different)
+		// var frame = displayObject.texture.frame;
+		// // 
+		// if(frame && frame.width && frame.height)
+		// {
+		// 	context.globalAlpha = displayObject.worldAlpha;
+
+		// 	context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
+
+		// 	context.drawImage(displayObject.texture.baseTexture.source,
+		// 					   frame.x,
+		// 					   frame.y,
+		// 					   frame.width,
+		// 					   frame.height,
+		// 					   (displayObject.anchor.x) * -frame.width,
+		// 					   (displayObject.anchor.y) * -frame.height,
+		// 					   frame.width,
+		// 					   frame.height);
+		// }
+	}
+	//draw any children we might have in this sprite..
+	this._canvasDrawChildren(renderer, projection);
+};

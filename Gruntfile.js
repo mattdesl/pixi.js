@@ -1,5 +1,5 @@
 module.exports = function(grunt) {
-    grunt.loadNpmTasks('grunt-contrib-concat');
+    // grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-connect');
@@ -38,7 +38,7 @@ module.exports = function(grunt) {
             '<%= dirs.src %>/renderers/webgl/WebGLExtras.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderer.js',
             '<%= dirs.src %>/renderers/webgl/WebGLBatch.js',
-            '<%= dirs.src %>/renderers/webgl/utils/SpriteBatch.js',
+            '<%= dirs.src %>/renderers/webgl/utils/WebGLSpriteBatch.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderGroup.js',
             '<%= dirs.src %>/renderers/canvas/CanvasRenderer.js',
             '<%= dirs.src %>/renderers/canvas/CanvasGraphics.js',
@@ -88,19 +88,19 @@ module.exports = function(grunt) {
             build: '<%= dirs.build %>/pixi.dev.js',
             buildMin: '<%= dirs.build %>/pixi.js'
         },
-        concat: {
-            options: {
-                banner: banner
-            },
-            dist: {
-                src: srcFiles,
-                dest: '<%= files.build %>'
-            }
-        },
+        // concat: {
+        //     options: {
+        //         banner: banner
+        //     },
+        //     dist: {
+        //         src: srcFiles,
+        //         dest: '<%= files.build %>'
+        //     }
+        // },
         concat_sourcemap: {
             dev: {
                 files: {
-                    'bin/pixi.debug.js': srcFiles
+                    '<%= files.build %>': srcFiles
                 }
             },
         },
@@ -203,8 +203,8 @@ module.exports = function(grunt) {
         }
     )
 
-    grunt.registerTask('default', ['concat', 'uglify', 'distribute']);
-    grunt.registerTask('build', ['concat', 'uglify', 'distribute']);
+    grunt.registerTask('default', ['concat_sourcemap', 'uglify', 'distribute']);
+    grunt.registerTask('build', ['concat_sourcemap', 'uglify', 'distribute']);
     grunt.registerTask('test', ['build', 'connect:qunit', 'qunit']);
     grunt.registerTask('docs', ['yuidoc']);
 

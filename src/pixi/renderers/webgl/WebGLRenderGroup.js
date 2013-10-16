@@ -69,7 +69,7 @@ PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 
 	// will render all the elements in the group
 	var renderable;
-	
+		
 	for (var i=0; i < this.batchs.length; i++) 
 	{
 
@@ -79,7 +79,6 @@ PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 			this.batchs[i].render();
 			continue;
 		}
-
 
 		//assume its an extra
 		this.extras.render(renderer, renderable, projection);
@@ -139,7 +138,7 @@ PIXI.WebGLRenderGroup.prototype.renderSpecific = function(renderer, displayObjec
 	}
 	var startBatch = nextRenderable.batch;
 
-	if(nextRenderable instanceof PIXI.Sprite)
+	if(nextRenderable instanceof PIXI.Sprite && !(nextRenderable instanceof PIXI.Sprite))
 	{
 		startBatch = nextRenderable.batch;
 
@@ -177,7 +176,7 @@ PIXI.WebGLRenderGroup.prototype.renderSpecific = function(renderer, displayObjec
 		if(lastItem.renderable)lastRenderable = lastItem;
 	}
 
-	if(lastRenderable instanceof PIXI.Sprite)
+	if(lastRenderable instanceof PIXI.Sprite && !(lastRenderable instanceof PIXI.TilingSprite))
 	{
 		endBatch = lastRenderable.batch;
 
@@ -453,12 +452,12 @@ PIXI.WebGLRenderGroup.prototype.insertObject = function(displayObject, previousO
 	 * so now we have the next renderable and the previous renderable
 	 *
 	 */
-	if(displayObject instanceof PIXI.Sprite)
+	if(displayObject instanceof PIXI.Sprite && !(displayObject instanceof PIXI.TilingSprite))
 	{
 		var previousBatch
 		var nextBatch
 
-		if(previousSprite instanceof PIXI.Sprite)
+		if(previousSprite instanceof PIXI.Sprite && !(previousSprite instanceof PIXI.TilingSprite))
 		{
 			previousBatch = previousSprite.batch;
 			if(previousBatch)
@@ -478,7 +477,7 @@ PIXI.WebGLRenderGroup.prototype.insertObject = function(displayObject, previousO
 
 		if(nextSprite)
 		{
-			if(nextSprite instanceof PIXI.Sprite)
+			if(nextSprite instanceof PIXI.Sprite && !(nextSprite instanceof PIXI.TilingSprite))
 			{
 				nextBatch = nextSprite.batch;
 
@@ -564,7 +563,7 @@ PIXI.WebGLRenderGroup.prototype.insertObject = function(displayObject, previousO
  */
 PIXI.WebGLRenderGroup.prototype.insertAfter = function(item, displayObject)
 {
-	if(displayObject instanceof PIXI.Sprite)
+	if(displayObject instanceof PIXI.Sprite && !(displayObject instanceof PIXI.TilingSprite))
 	{
 		var previousBatch = displayObject.batch;
 
@@ -631,7 +630,8 @@ PIXI.WebGLRenderGroup.prototype.removeObject = function(displayObject)
 	 */
 	var batchToRemove;
 
-	if(displayObject instanceof PIXI.Sprite)
+	//instanceof is NASTY and usually sign of code smell... HERE IS WHY!!!
+	if(displayObject instanceof PIXI.Sprite && !(displayObject instanceof PIXI.TilingSprite)) 
 	{
 		// should always have a batch!
 		var batch = displayObject.batch;

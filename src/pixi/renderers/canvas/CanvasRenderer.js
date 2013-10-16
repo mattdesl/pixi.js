@@ -87,7 +87,7 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 
 	this.context.setTransform(1,0,0,1,0,0);
 	this.context.clearRect(0, 0, this.width, this.height)
-    this.renderDisplayObject(stage);
+    this.renderDisplayObject(stage, stage);
     //as
 
     // run interaction!
@@ -145,6 +145,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 	var testObject = displayObject.last._iNext;
 	displayObject = displayObject.first;
 
+	var count = 0;
 	do
 	{
 		transform = displayObject.worldTransform;
@@ -165,6 +166,21 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 		{
 
 			var frame = displayObject.texture.frame;
+			
+			//do some cullin' to avoid unnecessary calls to context drawImage
+			var showing = displayObject.isShowing();
+			if (showing
+					&& displayObject.stage 
+					&& !displayObject.stage.cullingRect 
+					&& !displayObject.cullingEnabled) {
+				displayObject._updateVertices();
+				showing = !displayObject._isCulled();
+			}
+
+			if (!showing) {
+				displayObject = displayObject.last._iNext;
+				continue;
+			}
 
 			if(frame && frame.width && frame.height)
 			{
@@ -227,14 +243,13 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				context.restore();
 			}
 		}
-	//	count++
+		count++
 		displayObject = displayObject._iNext;
 
 
 	}
 	while(displayObject != testObject)
-
-
+	console.log(count);	
 }
 
 /**

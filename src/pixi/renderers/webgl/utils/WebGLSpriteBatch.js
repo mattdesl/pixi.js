@@ -1,8 +1,8 @@
 /**
  * @author Matt DesLauriers <mattdesl> https://github.com/mattdesl/
  * 
- * Heavily inspired by LibGDX's SpriteBatch:
- * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/SpriteBatch.java
+ * Heavily inspired by LibGDX's WebGLSpriteBatch:
+ * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/WebGLSpriteBatch.java
  */
 
 
@@ -14,7 +14,7 @@
  *
  *     { x, y, u, v, alpha }
  * 
- * @class SpriteBatch
+ * @class WebGLSpriteBatch
  * @constructor
  *
  *
@@ -22,7 +22,7 @@
  * @param size {Number} the default max size of the batch, in sprites
  * @default 0
  */
-PIXI.SpriteBatch = function(gl, size)
+PIXI.WebGLSpriteBatch = function(gl, size)
 {
 	this.initialize(gl);
 	this.size = size || 500;
@@ -67,14 +67,14 @@ PIXI.SpriteBatch = function(gl, size)
 	this.baseTexture = null; //NOTE: this is a BaseTexture
 }; 
 
-PIXI.SpriteBatch.totalRenderCalls = 0;
+PIXI.WebGLSpriteBatch.totalRenderCalls = 0;
 
 
 // constructor
-PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
+PIXI.WebGLSpriteBatch.constructor = PIXI.WebGLSpriteBatch;
 
 //TODO: implement...
-PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
+PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
 {
 	//... TODO: flush and swap blend modes...
 	//Implementation should be renderer agnostic or at least 
@@ -82,10 +82,10 @@ PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.SpriteBatch.prototype.begin = function(projection, bounds) 
+PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds) 
 {
 	if (this.drawing)
-		throw "SpriteBatch.end() must be called before begin";
+		throw "WebGLSpriteBatch.end() must be called before begin";
 
 	this.bounds = bounds;
 
@@ -118,10 +118,10 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 	this.drawing = true;
 };
 
-PIXI.SpriteBatch.prototype.end = function(projection) 
+PIXI.WebGLSpriteBatch.prototype.end = function(projection) 
 {
 	if (!this.drawing)
-		throw "SpriteBatch.begin() must be called before end";
+		throw "WebGLSpriteBatch.begin() must be called before end";
 	if (this.idx > 0)
 		this.flush();
 	this.baseTexture = null;
@@ -131,7 +131,7 @@ PIXI.SpriteBatch.prototype.end = function(projection)
 	gl.depthMask(true); //reset to default WebGL state
 };
 
-PIXI.SpriteBatch.prototype.flush = function() 
+PIXI.WebGLSpriteBatch.prototype.flush = function() 
 {
 	if (this.idx===0)
 		return;
@@ -140,7 +140,7 @@ PIXI.SpriteBatch.prototype.flush = function()
 
     var gl = this.gl;
     
-    PIXI.SpriteBatch.totalRenderCalls++;
+    PIXI.WebGLSpriteBatch.totalRenderCalls++;
     
     //bind the current texture
     gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
@@ -173,10 +173,10 @@ PIXI.SpriteBatch.prototype.flush = function()
 /**
  * Adds a single display object (with no children) to this batch.
  */
-PIXI.SpriteBatch.prototype.drawSprite = function(sprite) 
+PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite) 
 {
 	if (!this.drawing)
-		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 	var texture = sprite.texture;
 
 	if (this.baseTexture != texture.baseTexture) {
@@ -188,7 +188,8 @@ PIXI.SpriteBatch.prototype.drawSprite = function(sprite)
 	}
 
 	var verts =	sprite._updateVertices();
-	 
+	// TODO: we can remove this duplicate code with drawVertices
+	
 ///TODO: loop ?
 	var off = 0;
 	//xy
@@ -228,10 +229,10 @@ PIXI.SpriteBatch.prototype.drawSprite = function(sprite)
 /**
  * Adds a single set of vertices to this sprite batch (20 floats).
  */
-PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off) 
+PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off) 
 {
 	if (!this.drawing)
-		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 	
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -278,7 +279,7 @@ PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off)
 };
 
 
-// PIXI.SpriteBatch.prototype._drawVertices = function(
+// PIXI.WebGLSpriteBatch.prototype._drawVertices = function(
 // 		baseTexture,
 // 		x1, y1, u1, v1, c1,
 // 		x2, y2, u2, v2, c2,
@@ -286,7 +287,7 @@ PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off)
 // 		x4, y4, u4, v4, c4)  
 // {
 // 	if (!this.drawing)
-// 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+// 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 // 	if (this.baseTexture != baseTexture) {
 // 		//new texture.. flush previous data
 // 		this.flush();
@@ -303,7 +304,7 @@ PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off)
  * 
  * @method initialize
  */
-PIXI.SpriteBatch.prototype.initialize = function(gl)
+PIXI.WebGLSpriteBatch.prototype.initialize = function(gl)
 {
 	this.gl = gl;
 	this.vertexBuffer = gl.createBuffer();
@@ -316,7 +317,7 @@ PIXI.SpriteBatch.prototype.initialize = function(gl)
  *
  * @method destroy
  */
-PIXI.SpriteBatch.prototype.destroy = function()
+PIXI.WebGLSpriteBatch.prototype.destroy = function()
 {
 	this.vertices = [];
 	this.indices = [];
