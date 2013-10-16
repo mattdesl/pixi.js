@@ -1782,7 +1782,7 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 	{
 		this.textureChange = true;
 		this.texture = texture;
-
+	
 		if(this.__renderGroup)
 		{
 			this.__renderGroup.updateTexture(this);
@@ -1792,6 +1792,9 @@ PIXI.Sprite.prototype.setTexture = function(texture)
 	{
 		this.texture = texture;
 	}
+	
+	this.anchor.x = texture.anchor.x;
+	this.anchor.y = texture.anchor.y;
 
 	this.updateFrame = true;
 }
@@ -2197,18 +2200,30 @@ PIXI.MovieClip.prototype.updateTransform = function()
 	PIXI.Sprite.prototype.updateTransform.call(this);
 
 	if(!this.playing)return;
+	
+	this.currentFrame += this.animationSpeed * this.stage.time.timeScale;
 
-	this.currentFrame += this.animationSpeed;
-
-	var round = (this.currentFrame + 0.5) | 0;
-
+	var round = Math.round( this.currentFrame );
+	
 	if(this.loop || round < this.textures.length)
 	{
-		this.setTexture(this.textures[round % this.textures.length]);
+		var nFrame = round % this.textures.length;
+
+		if( nFrame < 0 ) {
+
+			nFrame += this.textures.length;
+		}
+
+		this.setTexture( this.textures[ nFrame ] );
+	}
+	else if(round <= 0 ) 
+	{
+		this.gotoAndStop( 0 );
 	}
 	else if(round >= this.textures.length)
 	{
 		this.gotoAndStop(this.textures.length - 1);
+
 		if(this.onComplete)
 		{
 			this.onComplete();
@@ -3439,6 +3454,15 @@ PIXI.Stage = function(backgroundColor)
 	 */
 	this.dirty = true;
 
+	/**
+	 * time is an instance of the Time class. It can be used to perform frame independent animations.
+	 * This property will be set by the renderer during render.
+	 *
+	 * @property time
+	 * @type {Time}
+	 */	
+	this.time = null;
+
 	this.__childrenAdded = [];
 	this.__childrenRemoved = [];
 
@@ -3450,7 +3474,7 @@ PIXI.Stage = function(backgroundColor)
 
 	//Bounds can be used to cull sprites whose bounding boxes lie outside of the stage bounds
 	this.cullingRect = null;
-
+	
 	this.setBackgroundColor(backgroundColor);
 	this.worldVisible = true;
 }
@@ -3751,10 +3775,12 @@ PIXI.EventTarget = function () {
  * @param view {Canvas} the canvas to use as a view, optional
  * @param transparent=false {Boolean} the transparency of the render view, default false
  * @param antialias=false {Boolean} sets antialias (only applicable in webGL chrome at the moment)
- *
+ * @param targetFrameRate {Number}=60 target framerate for MovieClip animations and other time based animations
+ * @param minFrameRate {Number}=12 minimum framerate update for MovieClips and other time based animations
+ * 
  * antialias
  */
-PIXI.autoDetectRenderer = function(width, height, view, transparent, antialias)
+PIXI.autoDetectRenderer = function(width, height, view, transparent, antialias, targetFrameRate, minFrameRate )
 {
 	if(!width)width = 800;
 	if(!height)height = 600;
@@ -3765,10 +3791,10 @@ PIXI.autoDetectRenderer = function(width, height, view, transparent, antialias)
 	//console.log(webgl);
 	if( webgl )
 	{
-		return new PIXI.WebGLRenderer(width, height, view, transparent, antialias);
+		return new PIXI.WebGLRenderer(width, height, view, transparent, antialias, targetFrameRate, minFrameRate );
 	}
 
-	return	new PIXI.CanvasRenderer(width, height, view, transparent);
+	return new PIXI.CanvasRenderer(width, height, view, transparent, targetFrameRate, minFrameRate );
 };
 
 
@@ -3923,6 +3949,135 @@ PIXI.PolyK._convex = function(ax, ay, bx, by, cx, cy, sign)
 	return ((ay-by)*(cx-bx) + (bx-ax)*(cy-by) >= 0) == sign;
 }
 
+/**
+ * @author Mikko Haapoja http://mikkoh.com/ @MikkoH
+ */
+
+
+/**
+ * The base class for all objects that are rendered on the screen.
+ *
+ * @class DisplayObject
+ * @constructor
+ */
+
+/**
+Time is a class that can be used to ensure that items update independent of framerate. Movieclip's
+framerate will be capped by the timeScale property which is updated during every render call. Each
+renderer will have their own instance of Time which will do the limitting for MovieClips.
+
+@class Time
+@static
+**/
+PIXI.Time = function( targetFrameRate, minFrameRate ) {
+
+	if( targetFrameRate !== undefined ) {
+
+		this.setTargetFrameRate( targetFrameRate );
+	}
+
+	if( minFrameRate !== undefined ) {
+
+		this.setMinFrameRate( minFrameRate );
+	}
+};
+
+PIXI.Time.prototype = {
+
+/**
+ * is the update scale based on the target framerate. So for example if you're expecting something
+ * doing something like x += 10 per frame at 60fps. You can do this: x += 10 * PIXI.Time.timeScale
+ * to ensure that you're moving at a constant rate regardless of framerate. This property is updated
+ * everytime the render function of the renderers is called.
+ *
+ * @property timeScale
+ * @type Number
+ * @default 1
+ */
+	timeScale: 1,
+
+	_tFrameRate: 60,
+	_minFrameRate: 12,
+	_tMilli: 1000 / 60,
+	_minMilli: 1000 / 12,
+	_prevMilli: Date.now(),
+	
+//This is the setter function for the targetFrameRate
+	setTargetFrameRate: function( framerate ) {
+
+		this._tFrameRate = framerate;
+		this._tMilli = 1000 / framerate;
+	},
+
+//This is the getter function for the targetFrameRate
+	getTargetFrameRate: function() {
+
+		return this._tFrameRate;
+	},
+
+//This is the setter function for the minFrameRate
+	setMinFrameRate: function( framerate ) {
+
+		if( framerate > this._tFrameRate ) {
+
+			throw 'Your target minimum framerate must be smaller than your target framerate: ' + this._tFrameRate;
+		} else {
+
+			this._minFrameRate = framerate;
+			this._minMilli = 1000 / framerate;
+		}
+	},
+
+//This is the getter function for the minFrameRate
+	getMinFrameRate: function() {
+
+		return this._minFrameRate;
+	},
+
+//This is the update function which will get called by the renderers
+	update: function() {
+
+		var curMilli = Date.now();
+		var milliDif = curMilli - this._prevMilli;
+
+		if( milliDif > this._minMilli ) {
+
+			milliDif = this._minMilli;
+		}
+
+		this.timeScale = milliDif / this._tMilli;
+
+		this._prevMilli = curMilli;
+	}
+};
+
+/**
+ * Indicates the target frame rate for all MovieClip animations.
+ *
+ * @property targetFrameRate
+ * @type Number
+ * @default 60
+ */
+Object.defineProperty( PIXI.Time.prototype, 'targetFrameRate', {
+
+	get: PIXI.Time.getTargetFrameRate,
+	set: PIXI.Time.setTargetFrameRate
+});
+
+/**
+ * Indicates the minimum frame rate for all MovieClip animations. If for some reason the framerate drops very low
+ * the frame rate of animations will be capped to update at 12 fps. As a note this property is mostly used to
+ * cap the next update if render() has not been called for a long time.
+ *
+ * @property minFrameRate
+ * @type Number
+ * @default 12
+ */
+Object.defineProperty( PIXI.Time.prototype, 'minFrameRate', {
+
+	get: PIXI.Time.getMinFrameRate,
+	set: PIXI.Time.setMinFrameRate
+});
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -5041,9 +5196,11 @@ PIXI.gl;
  * @param view {Canvas} the canvas to use as a view, optional
  * @param transparent=false {Boolean} the transparency of the render view, default false
  * @param antialias=false {Boolean} sets antialias (only applicable in chrome at the moment)
- *
+ * @param targetFrameRate {Number}=60 target framerate for MovieClip animations and other time based animations
+ * @param minFrameRate {Number}=12 minimum framerate update for MovieClips and other time based animations
+ * 
  */
-PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
+PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targetFrameRate, minFrameRate )
 {
 	// do a catch.. only 1 webGL renderer..
 
@@ -5055,6 +5212,16 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 	this.view = view || document.createElement( 'canvas' );
     this.view.width = this.width;
 	this.view.height = this.height;
+
+
+    /**
+     * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
+     * perform framerate independent programmatic animations.
+     *
+     * @property time
+     * @type {Time}
+     */
+    this.time = new PIXI.Time( targetFrameRate, minFrameRate );
 
 	// deal with losing context..
     var scope = this;
@@ -5167,6 +5334,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  */
 PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
+PIXI.WebGLRenderer.throttleTextureUploads = false;
 
 PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
 {
@@ -5238,6 +5406,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			this.stageRenderGroup.setRenderable(stage);
 	}
 
+    stage.time = this.time;
+        
 	// TODO not needed now...
 	// update children if need be
 	// best to remove first!
@@ -5305,9 +5475,22 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 PIXI.WebGLRenderer.updateTextures = function()
 {
 	//TODO break this out into a texture manager...
-	for (var i=0; i < PIXI.texturesToUpdate.length; i++) PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+	
+	//throttle texture uploads
+	if (PIXI.WebGLRenderer.throttleTextureUploads) {
+		if (PIXI.texturesToUpdate.length) {
+			var tex = PIXI.texturesToUpdate.shift();
+			PIXI.WebGLRenderer.updateTexture(tex);
+		}
+	} else {
+		for (var i=0; i < PIXI.texturesToUpdate.length; i++) {
+			PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+		}
+		PIXI.texturesToUpdate = [];
+	}
+	
+	//texture deletes will be fast, so do em all in one.
 	for (var i=0; i < PIXI.texturesToDestroy.length; i++) PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
-	PIXI.texturesToUpdate = [];
 	PIXI.texturesToDestroy = [];
 }
 
@@ -6277,6 +6460,10 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 	var texture = sprite.texture;
 
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
+
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
 		this.flush();
@@ -6331,6 +6518,10 @@ PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off)
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
+	
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
 	
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -7148,8 +7339,11 @@ PIXI.WebGLRenderGroup.prototype.handleContextRestored = function(gl)
  * @param height=0 {Number} the height of the canvas view
  * @param view {Canvas} the canvas to use as a view, optional
  * @param transparent=false {Boolean} the transparency of the render view, default false
+ * @param targetFrameRate {Number}=60 target framerate for MovieClip animations and other time based animations
+ * @param minFrameRate {Number}=12 minimum framerate update for MovieClips and other time based animations
+ *
  */
-PIXI.CanvasRenderer = function(width, height, view, transparent)
+PIXI.CanvasRenderer = function(width, height, view, transparent, targetFrameRate, minFrameRate )
 {
 	this.transparent = transparent;
 
@@ -7186,6 +7380,15 @@ PIXI.CanvasRenderer = function(width, height, view, transparent)
 	 */
 	this.context = this.view.getContext("2d");
 
+	/**
+	 * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
+	 * perform framerate independent programmatic animations.
+	 *
+	 * @property time
+	 * @type {Time}
+	 */
+	this.time = new PIXI.Time( targetFrameRate, minFrameRate );
+
 	this.refresh = true;
 	// hack to enable some hardware acceleration!
 	//this.view.style["transform"] = "translatez(0)";
@@ -7210,6 +7413,8 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 	//stage.__childrenAdded = [];
 	//stage.__childrenRemoved = [];
 
+	stage.time = this.time;
+	
 	// update textures if need be
 	PIXI.texturesToUpdate = [];
 	PIXI.texturesToDestroy = [];
@@ -7241,8 +7446,8 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 	{
 		PIXI.Texture.frameUpdates = [];
 	}
-
-
+	
+	this.time.update();
 }
 
 /**
@@ -7280,7 +7485,6 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 	var testObject = displayObject.last._iNext;
 	displayObject = displayObject.first;
 
-	var count = 0;
 	do
 	{
 		transform = displayObject.worldTransform;
@@ -7384,7 +7588,8 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 	}
 	while(displayObject != testObject)
-	console.log(count);	
+
+
 }
 
 /**
@@ -8422,6 +8627,7 @@ PIXI.TilingSprite.prototype._updateVertices = function() {
 
 	return out;
 };
+
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
  * based on pixi impact spine implementation made by Eemeli Kelokorpi (@ekelokorpi) https://github.com/ekelokorpi
@@ -10136,6 +10342,15 @@ PIXI.Texture = function(baseTexture, frame)
 	 */
 	this.trim = new PIXI.Point();
 
+	/**
+	 * The anchor point that a Sprite should set it's anchor to. This will most be used by
+	 * sprite sheets to offset themselves
+	 *
+	 * @property anchor
+	 * @type Point
+	 */
+	this.anchor = new PIXI.Point();
+
 	this.scope = this;
 
 	if(baseTexture.hasLoaded)
@@ -10784,7 +10999,16 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 						});
 						if (frameData[i].trimmed) {
 							//var realSize = frameData[i].spriteSourceSize;
-							PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+							//I don't think realSize is used anywhere in the library so I'm commenting this out
+							//PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+
+							//we need to upscale cause the anchor offset is calculated based on sourceSize and not frame
+							var upScaleX = frameData[i].sourceSize.w / rect.w;
+							var upScaleY = frameData[i].sourceSize.h / rect.h;
+
+							PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
+							PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
+
 							PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 							// calculate the offset!
 						}
@@ -10956,7 +11180,16 @@ PIXI.SpriteSheetLoader.prototype.onJSONLoaded = function () {
 			});
 			if (frameData[i].trimmed) {
 				//var realSize = frameData[i].spriteSourceSize;
-				PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+				//I don't think realSize is used anywhere in the library so I'm commenting this out
+				//PIXI.TextureCache[i].realSize = frameData[i].spriteSourceSize;
+
+				//we need to upscale cause the anchor offset is calculated based on sourceSize and not frame
+				var upScaleX = frameData[i].sourceSize.w / rect.w;
+				var upScaleY = frameData[i].sourceSize.h / rect.h;
+
+				PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
+				PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
+
 				PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 				// calculate the offset!
 			}

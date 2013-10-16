@@ -1,14 +1,3 @@
-/**
- * @license
- * Pixi.JS - v1.3.0
- * Copyright (c) 2012, Mat Groves
- * http://goodboydigital.com/
- *
- * Compiled: 2013-10-14
- *
- * Pixi.JS is licensed under the MIT License.
- * http://www.opensource.org/licenses/mit-license.php
- */
 define( function() {
 
 
@@ -148,8 +137,17 @@ PIXI.Rectangle.prototype.contains = function(x, y)
 	return false;
 }
 
+PIXI.Rectangle.prototype.intersects = function(rect) {
+	return !(rect.x > (this.x+this.width) || 
+           (rect.x+rect.width) < this.x || 
+           rect.y > (this.y+this.height) ||
+           (rect.y+rect.height) < this.y);
+};
+
 // constructor
 PIXI.Rectangle.prototype.constructor = PIXI.Rectangle;
+
+
 
 
 /**
@@ -832,6 +830,7 @@ PIXI.DisplayObject = function()
 	 */
 	this.localTransform = PIXI.mat3.create()//mat3.identity();
 
+
 	/**
 	 * [NYI] Unkown
 	 *
@@ -1199,6 +1198,8 @@ PIXI.DisplayObject.prototype.updateTransform = function()
 
 };
 
+
+
 PIXI.visibleCount = 0;
 
 PIXI.DisplayObject.prototype.isShowing = function()
@@ -1209,7 +1210,7 @@ PIXI.DisplayObject.prototype.isShowing = function()
 } 
 
 //To avoid recursion in WebGLRenderer we'll define the methods here...
-PIXI.DisplayObject.prototype._glDraw = function(batch, projection) 
+PIXI.DisplayObject.prototype._glDraw = function(renderer, projection) 
 {
 	//base display object doesn't draw anything
 };
@@ -1587,12 +1588,12 @@ PIXI.DisplayObjectContainer.prototype.updateTransform = function()
 ////TODO --- would be nice to clean this up and decouple it from DisplayObjectContainer
 //The methods are defined per object instead of recursively rendering in WebGLRenderer.
 
-PIXI.DisplayObjectContainer.prototype._glDraw = function(batch, projection, extras) 
+PIXI.DisplayObjectContainer.prototype._glDraw = function(renderer, projection) 
 {	
-	this._glDrawChildren(batch, projection, extras);
+	this._glDrawChildren(renderer, projection);
 };
 
-PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projection, extras) 
+PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(renderer, projection) 
 {
 	var children = this.children;
 	var len = children.length;
@@ -1601,20 +1602,20 @@ PIXI.DisplayObjectContainer.prototype._glDrawChildren = function(batch, projecti
 		var c = children[i];
 
 		//skip non-visible entities 
-		if (!c.visible)
+		if (!c || !c.visible || !c.isShowing())
 			continue;
 
 		//if the child is an "extra" type (Graphics, Strip, etc)
 		//then we need to flush the batch and render it using a different approach
-		if (extras.isExtra(c)) {
-			batch.end(); //stop the batch  
-			extras.render(c);
-			batch.begin(projection); //start again after extra has been rendered
+		if (!(c instanceof PIXI.TilingSprite) && renderer.extras.isExtra(c)) { //TODO: fix this hack for TilingSprite
+			renderer.spriteBatch.end(); //stop the batch  
+			renderer.extras.render(renderer, c, projection);
+			renderer.spriteBatch.begin(projection); //start again after extra has been rendered
 		} 
 		// console.log("Rendering ", c);
-
+		
 		//now we draw it like any other DisplayObject, incase it has some children
-		c._glDraw(batch, projection, extras);
+		c._glDraw(renderer, projection);
 	}
 };
 
@@ -1723,13 +1724,13 @@ PIXI.Sprite = function(texture)
 	}
 
 	this.renderable = true;
-}
+};
 
 // constructor
 PIXI.Sprite.prototype = Object.create( PIXI.DisplayObjectContainer.prototype );
 PIXI.Sprite.prototype.constructor = PIXI.Sprite;
 
-PIXI.Sprite.VERTEX_SIZE = 5;
+PIXI.Sprite.VERTEX_SIZE = (2 + 2 + 1);
 
 /**
  * The width of the sprite, setting this will actually modify the scale to acheive the value set
@@ -1846,9 +1847,7 @@ PIXI.Sprite.fromImage = function(imageId)
 	return new PIXI.Sprite(texture);
 }
 
-
-
-PIXI.Sprite.prototype._updateVertices = function() {
+PIXI.Sprite.prototype._updateVertices = function(width, height) {
 	//TODO: cache; when a container moves/rotates flag its children as dirty
 	var texture = this.texture;
 	var frame = texture.frame;
@@ -1859,8 +1858,8 @@ PIXI.Sprite.prototype._updateVertices = function() {
 	var color = this.worldAlpha;
 
 	//size of texture region
-	width = frame.width;
-	height = frame.height;
+	width = width || frame.width;
+	height = height || frame.height;
 
 	// TODO trim??
 	aX = this.anchor.x;// - displayObject.texture.trim.x
@@ -1966,7 +1965,23 @@ PIXI.Sprite.prototype._isCulled = function()
           b.y <= maxY);
 };
 
-PIXI.Sprite.prototype._glDraw = function(batch, projection, extras) 
+
+//pass function "renderFunc"
+//call like so: renderFunc( this )  => passing the sprite
+//on GL side:
+//   renderFunc(sprite)
+//   	spriteBatch.setBlendMode(sprite.blendMode);
+//   	spriteBatch.drawSprite(sprite)
+//on canvas side:
+//	 renderFunc(sprite)
+//	 	... trololo ..
+//	 	
+//	not really good for many different render types though !!
+//	using CustomRenderer type of thing would be better
+//	or a mix... allow generic renderable to draw with SpriteBatch
+//	OR allow them to perform custom draw ops?
+
+PIXI.Sprite.prototype._glDraw = function(renderer, projection) 
 {	
 	//don't draw anything if not visible!
 	if (!this.isShowing())
@@ -1981,13 +1996,55 @@ PIXI.Sprite.prototype._glDraw = function(batch, projection, extras)
 
 
 		//set new blend mode (this will flush batch if different)
-		batch.setBlendMode(this.blendMode);
+		renderer.spriteBatch.setBlendMode(this.blendMode);
 		//draw the object (batch will be flushed if the texture is different)
-		batch.drawVertices(this.texture, this._vertices, 0);
+		renderer.spriteBatch.drawVertices(this.texture, this._vertices, 0);
 
 	}
 	//draw any children we might have in this sprite..
-	this._glDrawChildren(batch, projection, extras);
+	this._glDrawChildren(renderer, projection);
+};
+
+
+PIXI.Sprite.prototype._canvasDraw = function(renderer, projection) 
+{	
+	//don't draw anything if not visible!
+	if (!this.isShowing())
+		return;
+	if (this.texture && this.texture.baseTexture && this.texture.baseTexture._glTexture) {
+		
+		this._updateVertices();
+
+		if (this._isCulled()) {
+			return;
+		}
+
+
+		//set new blend mode (this will flush batch if different)
+		//....
+		
+		//draw the object (batch will be flushed if the texture is different)
+		// var frame = displayObject.texture.frame;
+		// // 
+		// if(frame && frame.width && frame.height)
+		// {
+		// 	context.globalAlpha = displayObject.worldAlpha;
+
+		// 	context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
+
+		// 	context.drawImage(displayObject.texture.baseTexture.source,
+		// 					   frame.x,
+		// 					   frame.y,
+		// 					   frame.width,
+		// 					   frame.height,
+		// 					   (displayObject.anchor.x) * -frame.width,
+		// 					   (displayObject.anchor.y) * -frame.height,
+		// 					   frame.width,
+		// 					   frame.height);
+		// }
+	}
+	//draw any children we might have in this sprite..
+	this._canvasDrawChildren(renderer, projection);
 };
 
 /**
@@ -3724,7 +3781,7 @@ PIXI.autoDetectRenderer = function(width, height, view, transparent, antialias, 
 	if(!height)height = 600;
 
 	// BORROWED from Mr Doob (mrdoob.com)
-	var webgl = ( function () { try { return !! window.WebGLRenderingContext && !! document.createElement( 'canvas' ).getContext( 'experimental-webgl' ); } catch( e ) { return false; } } )();
+	var webgl = ( function () { try { var canvas = document.createElement( 'canvas' ); return !! window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ); } catch( e ) { return false; } } )();
 
 	//console.log(webgl);
 	if( webgl )
@@ -4795,7 +4852,6 @@ PIXI.WebGLExtras.prototype.isExtra = function(displayObject) {
 PIXI.WebGLExtras.prototype.init = function(displayObject) {
 	if(displayObject instanceof PIXI.TilingSprite)
 	{
-		
 		// add to a batch!!
 		this.initTilingSprite(displayObject);
 	//	this.batchs.push(displayObject);
@@ -4835,7 +4891,14 @@ PIXI.WebGLExtras.prototype.init = function(displayObject) {
  */
 PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 {
-	var worldVisible = renderable.vcount == PIXI.visibleCount;
+	var worldVisible = true;
+	if (!renderable)
+		return;
+	
+	if (renderable.isShowing)
+		worldVisible = renderable.isShowing();
+	else if (renderable.visible)
+		worldVisible = renderable.visible;
 	
 	if(renderable instanceof PIXI.TilingSprite)
 	{
@@ -4855,6 +4918,7 @@ PIXI.WebGLExtras.prototype.render = function(renderer, renderable, projection)
 	}
 	else if(renderable instanceof PIXI.FilterBlock)
 	{
+		var gl = this.gl;
 		/*
 		 * for now only masks are supported..
 		 */
@@ -4926,7 +4990,7 @@ PIXI.WebGLExtras.prototype.initTilingSprite = function(sprite)
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sprite.indices, gl.STATIC_DRAW);
     
 //    return ( (x > 0) && ((x & (x - 1)) == 0) );
-
+	
 	if(sprite.texture.baseTexture._glTexture)
 	{
     	gl.bindTexture(gl.TEXTURE_2D, sprite.texture.baseTexture._glTexture);
@@ -5112,7 +5176,7 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 
 // an instance of the gl context..
 // only one at the moment :/
-// PIXI.gl;
+PIXI.gl;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
@@ -5144,30 +5208,31 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
     this.view.width = this.width;
 	this.view.height = this.height;
 
-	/**
-	 * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
-	 * perform framerate independent programmatic animations.
-	 *
-	 * @property time
-	 * @type {Time}
-	 */
-	this.time = new PIXI.Time( targetFrameRate, minFrameRate );
 
-	// deal with losing context..	
+    /**
+     * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
+     * perform framerate independent programmatic animations.
+     *
+     * @property time
+     * @type {Time}
+     */
+    this.time = new PIXI.Time( targetFrameRate, minFrameRate );
+
+	// deal with losing context..
     var scope = this;
 	this.view.addEventListener('webglcontextlost', function(event) { scope.handleContextLost(event); }, false)
 	this.view.addEventListener('webglcontextrestored', function(event) { scope.handleContextRestored(event); }, false)
 
-	this.batchs = [];
+	this.contextOptions = {
+		 alpha: this.transparent,
+		 antialias: !!antialias, // SPEED UP??
+		 premultipliedAlpha:false,
+		 stencil:true
+    };
 
 	try
  	{
-        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  {
-    		 alpha: this.transparent,
-    		 antialias:!!antialias, // SPEED UP??
-    		 premultipliedAlpha:false,
-    		 stencil:true
-        });
+        PIXI.gl = this.gl = this.view.getContext("experimental-webgl",  this.contextOptions);
     }
     catch (e)
     {
@@ -5181,13 +5246,13 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
     PIXI.activateDefaultShader();
 
     var gl = this.gl;
+
+
+        
+
     PIXI.WebGLRenderer.gl = gl;
 
-   	gl.disable(gl.DEPTH_TEST);
-   	gl.disable(gl.CULL_FACE);
-
-    gl.enable(gl.BLEND);
-    gl.colorMask(true, true, true, this.transparent);
+    this.initializeGL();
 
     PIXI.projection = new PIXI.Point(400, 300);
 
@@ -5199,8 +5264,29 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
-    	this.spriteBatch = new PIXI.SpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
+ 
+    //can simulate context loss in Chrome like so:
+    // this.view.onmousedown = function(ev) {
+    	// console.dir(this.gl.getSupportedExtensions());
+  //   	var ext = (
+  //   		gl.getExtension("WEBGL_scompressed_texture_s3tc")
+		//   // gl.getExtension("WEBGL_compressed_texture_s3tc") ||
+		//   // gl.getExtension("MOZ_WEBGL_compressed_texture_s3tc") ||
+		//   // gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc")
+		// );
+		// console.dir(ext);
+
+    // 	var loseCtx = this.gl.getExtension("WEBGL_lose_context");
+    // 	console.log("killing context");
+    // 	loseCtx.loseContext();
+
+    // 	setTimeout(function() {
+    // 		console.log("restoring context...");
+    // 		loseCtx.restoreContext();
+    // 	}.bind(this), 1000);
+    // }.bind(this);
 }
 
 // constructor
@@ -5243,6 +5329,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  */
 PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
+PIXI.WebGLRenderer.throttleTextureUploads = false;
 
 PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
 {
@@ -5250,7 +5337,7 @@ PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection)
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
 		this.spriteBatch.begin();
-		stage._glDraw(this.spriteBatch, projection, this.extras);
+		stage._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
 };
@@ -5299,10 +5386,10 @@ PIXI.WebGLRenderer.returnBatch = function(batch)
  */
 PIXI.WebGLRenderer.prototype.render = function(stage)
 {
-	if(this.contextLost)return;
+	if(this.contextLost)
+		return;
 
-	stage.time = this.time;
-	
+
 	// if rendering a new stage clear the batchs..
 	if(this.__stage !== stage)
 	{
@@ -5314,6 +5401,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			this.stageRenderGroup.setRenderable(stage);
 	}
 
+    stage.time = this.time;
+        
 	// TODO not needed now...
 	// update children if need be
 	// best to remove first!
@@ -5333,10 +5422,10 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	var gl = this.gl;
 
 	// -- Does this need to be set every frame? -- //
-	gl.colorMask(true, true, true, this.transparent);
+ 	gl.colorMask(true, true, true, this.transparent);
 	gl.viewport(0, 0, this.width, this.height);
 
-   	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 	gl.clearColor(stage.backgroundColorSplit[0],stage.backgroundColorSplit[1],stage.backgroundColorSplit[2], !this.transparent);
 	gl.clear(gl.COLOR_BUFFER_BIT);
@@ -5369,8 +5458,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 		PIXI.Texture.frameUpdates = [];
 	}
-
-	this.time.update();
 }
 
 /**
@@ -5383,9 +5470,22 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 PIXI.WebGLRenderer.updateTextures = function()
 {
 	//TODO break this out into a texture manager...
-	for (var i=0; i < PIXI.texturesToUpdate.length; i++) PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+	
+	//throttle texture uploads
+	if (PIXI.WebGLRenderer.throttleTextureUploads) {
+		if (PIXI.texturesToUpdate.length) {
+			var tex = PIXI.texturesToUpdate.shift();
+			PIXI.WebGLRenderer.updateTexture(tex);
+		}
+	} else {
+		for (var i=0; i < PIXI.texturesToUpdate.length; i++) {
+			PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+		}
+		PIXI.texturesToUpdate = [];
+	}
+	
+	//texture deletes will be fast, so do em all in one.
 	for (var i=0; i < PIXI.texturesToDestroy.length; i++) PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
-	PIXI.texturesToUpdate = [];
 	PIXI.texturesToDestroy = [];
 }
 
@@ -5408,10 +5508,10 @@ PIXI.WebGLRenderer.updateTexture = function(texture)
 	}
 
 	if(texture.hasLoaded)
-	{
+	{ 
 		gl.bindTexture(gl.TEXTURE_2D, texture._glTexture);
 	 	gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-
+	 	
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.source);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -5447,8 +5547,8 @@ PIXI.WebGLRenderer.destroyTexture = function(texture)
 
 	if(texture._glTexture)
 	{
-		texture._glTexture = gl.createTexture();
 		gl.deleteTexture(gl.TEXTURE_2D, texture._glTexture);
+		texture._glTexture = null;
 	}
 }
 
@@ -5481,6 +5581,23 @@ PIXI.WebGLRenderer.prototype.resize = function(width, height)
 }
 
 /**
+ * Init the default GL states.
+ */
+PIXI.WebGLRenderer.prototype.initializeGL = function()
+{
+	var gl = this.gl;
+   	gl.disable(gl.DEPTH_TEST);
+   	gl.disable(gl.CULL_FACE);
+
+    gl.enable(gl.BLEND);
+
+    //TODO: investigate -- why wouldn't we write to alpha channel?
+    gl.colorMask(true, true, true, this.transparent);
+	gl.viewport(0, 0, this.width, this.height);
+}
+
+
+/**
  * Handles a lost webgl context
  *
  * @method handleContextLost
@@ -5491,6 +5608,7 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
 {
 	event.preventDefault();
 	this.contextLost = true;
+
 }
 
 /**
@@ -5499,27 +5617,42 @@ PIXI.WebGLRenderer.prototype.handleContextLost = function(event)
  * @method handleContextRestored
  * @param event {Event}
  * @private
- */
+*/
 PIXI.WebGLRenderer.prototype.handleContextRestored = function(event)
 {
-	this.gl = this.view.getContext("experimental-webgl",  {
-		alpha: true
-    });
+	this.gl = this.view.getContext("experimental-webgl", this.contextOptions);
+    
 
-	this.initShaders();
 
+    //static is ugly.. will need to refactor to get rid of this kind of stuff
+    PIXI.gl = this.gl;
+
+    //if anything is going to get updated next frame, clear its GL texture
+    for (var i=0; i<PIXI.texturesToUpdate.length; i++) {
+    	PIXI.texturesToUpdate[i].baseTexture._glTexture = null;
+	}
+    PIXI.texturesToUpdate = [];	
+    PIXI.texturesToDestroy = []; //will already be deleted due to context loss
+
+    //This will probably change when TextureCache gets cleaned up to use multiple 
+    //contexts/canvases
 	for(var key in PIXI.TextureCache)
 	{
-        	var texture = PIXI.TextureCache[key].baseTexture;
-        	texture._glTexture = null;
-        	PIXI.WebGLRenderer.updateTexture(texture);
-	};
+    	var texture = PIXI.TextureCache[key].baseTexture;
+    	texture._glTexture = null;
+    	PIXI.WebGLRenderer.updateTexture(texture);
+	}
 
-	for (var i=0; i <  this.batchs.length; i++)
-	{
-		this.batchs[i].restoreLostContext(this.gl)//
-		this.batchs[i].dirty = true;
-	};
+
+    PIXI.initPrimitiveShader();
+    PIXI.initDefaultShader();
+    PIXI.initDefaultStripShader();
+
+    this.initializeGL();
+
+	if (this.stageRenderGroup) {
+		this.stageRenderGroup.handleContextRestored(this.gl);
+	}
 
 	PIXI._restoreBatchs(this.gl);
 
@@ -5556,8 +5689,10 @@ PIXI._returnBatch = function(batch)
 	PIXI._batchs.push(batch);
 }
 
+////TODO: this seems no longer necessary?
 /**
  * @private
+ * @deprecated no longer needed with render groups..?
  */
 PIXI._restoreBatchs = function(gl)
 {
@@ -5584,7 +5719,6 @@ PIXI.WebGLBatch = function(gl)
 	this.gl = gl;
 
 	this.size = 0;
-	console.warn("Creating GL Batch");
 
 	this.vertexBuffer =  gl.createBuffer();
 	this.indexBuffer =  gl.createBuffer();
@@ -5629,6 +5763,23 @@ PIXI.WebGLBatch.prototype.restoreLostContext = function(gl)
 	this.indexBuffer =  gl.createBuffer();
 	this.uvBuffer =  gl.createBuffer();
 	this.colorBuffer =  gl.createBuffer();
+
+	//give the batches our last used data...
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER,this.verticies, gl.DYNAMIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.uvs , gl.DYNAMIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.colors , gl.DYNAMIC_DRAW);
+
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	this.dirtyUVS = true;
+	this.dirtyColors = true;
+	this.dirty = true;
 }
 
 /**
@@ -5924,7 +6075,7 @@ PIXI.WebGLBatch.prototype.refresh = function()
 
 		indexRun ++;
 	}
-
+	//TODO: we now need to re-initialize the buffers for context loss
 	this.dirtyUVS = true;
 	this.dirtyColors = true;
 }
@@ -5947,7 +6098,23 @@ PIXI.WebGLBatch.prototype.update = function()
 
 	while(displayObject)
 	{
-		if(displayObject.vcount === PIXI.visibleCount)
+		if (!displayObject)
+			continue;
+		
+		//TODO: fix this... make a unified isShowing method for culling etc
+		var showing = displayObject.isShowing ? displayObject.isShowing() : true;
+
+		if (showing && displayObject instanceof PIXI.Sprite 
+				&& displayObject.stage 
+				&& displayObject.stage.cullingRect 
+				&& displayObject.cullingEnabled) {
+			//TODO: use the values from _updateVertices below instead of recalc...
+			displayObject._updateVertices();
+			if (displayObject._isCulled())
+				continue;
+		}
+
+		if(showing)
 		{
 			width = displayObject.texture.frame.width;
 			height = displayObject.texture.frame.height;
@@ -6110,8 +6277,8 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
 /**
  * @author Matt DesLauriers <mattdesl> https://github.com/mattdesl/
  * 
- * Heavily inspired by LibGDX's SpriteBatch:
- * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/SpriteBatch.java
+ * Heavily inspired by LibGDX's WebGLSpriteBatch:
+ * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/WebGLSpriteBatch.java
  */
 
 
@@ -6123,7 +6290,7 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
  *
  *     { x, y, u, v, alpha }
  * 
- * @class SpriteBatch
+ * @class WebGLSpriteBatch
  * @constructor
  *
  *
@@ -6131,7 +6298,7 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
  * @param size {Number} the default max size of the batch, in sprites
  * @default 0
  */
-PIXI.SpriteBatch = function(gl, size)
+PIXI.WebGLSpriteBatch = function(gl, size)
 {
 	this.initialize(gl);
 	this.size = size || 500;
@@ -6176,13 +6343,14 @@ PIXI.SpriteBatch = function(gl, size)
 	this.baseTexture = null; //NOTE: this is a BaseTexture
 }; 
 
-PIXI.SpriteBatch.totalRenderCalls = 0;
+PIXI.WebGLSpriteBatch.totalRenderCalls = 0;
+
 
 // constructor
-PIXI.SpriteBatch.constructor = PIXI.SpriteBatch;
+PIXI.WebGLSpriteBatch.constructor = PIXI.WebGLSpriteBatch;
 
 //TODO: implement...
-PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
+PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
 {
 	//... TODO: flush and swap blend modes...
 	//Implementation should be renderer agnostic or at least 
@@ -6190,10 +6358,10 @@ PIXI.SpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.SpriteBatch.prototype.begin = function(projection, bounds) 
+PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds) 
 {
 	if (this.drawing)
-		throw "SpriteBatch.end() must be called before begin";
+		throw "WebGLSpriteBatch.end() must be called before begin";
 
 	this.bounds = bounds;
 
@@ -6205,6 +6373,7 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 
 	//disable depth mask
 	gl.depthMask(false);
+
 
 	//activate texture0
 	gl.activeTexture(gl.TEXTURE0);
@@ -6218,13 +6387,17 @@ PIXI.SpriteBatch.prototype.begin = function(projection, bounds)
 	//premultiplied alpha
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
 
+	//bind the element buffer
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
 	this.drawing = true;
 };
 
-PIXI.SpriteBatch.prototype.end = function(projection) 
+PIXI.WebGLSpriteBatch.prototype.end = function(projection) 
 {
 	if (!this.drawing)
-		throw "SpriteBatch.begin() must be called before end";
+		throw "WebGLSpriteBatch.begin() must be called before end";
 	if (this.idx > 0)
 		this.flush();
 	this.baseTexture = null;
@@ -6234,7 +6407,7 @@ PIXI.SpriteBatch.prototype.end = function(projection)
 	gl.depthMask(true); //reset to default WebGL state
 };
 
-PIXI.SpriteBatch.prototype.flush = function() 
+PIXI.WebGLSpriteBatch.prototype.flush = function() 
 {
 	if (this.idx===0)
 		return;
@@ -6243,7 +6416,7 @@ PIXI.SpriteBatch.prototype.flush = function()
 
     var gl = this.gl;
     
-    PIXI.SpriteBatch.totalRenderCalls++;
+    PIXI.WebGLSpriteBatch.totalRenderCalls++;
     
     //bind the current texture
     gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
@@ -6276,11 +6449,15 @@ PIXI.SpriteBatch.prototype.flush = function()
 /**
  * Adds a single display object (with no children) to this batch.
  */
-PIXI.SpriteBatch.prototype.drawSprite = function(sprite) 
+PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite) 
 {
 	if (!this.drawing)
-		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 	var texture = sprite.texture;
+
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
 
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -6291,7 +6468,8 @@ PIXI.SpriteBatch.prototype.drawSprite = function(sprite)
 	}
 
 	var verts =	sprite._updateVertices();
-	 
+	// TODO: we can remove this duplicate code with drawVertices
+	
 ///TODO: loop ?
 	var off = 0;
 	//xy
@@ -6331,10 +6509,14 @@ PIXI.SpriteBatch.prototype.drawSprite = function(sprite)
 /**
  * Adds a single set of vertices to this sprite batch (20 floats).
  */
-PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off) 
+PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off) 
 {
 	if (!this.drawing)
-		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
+	
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
 	
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -6381,7 +6563,7 @@ PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off)
 };
 
 
-// PIXI.SpriteBatch.prototype._drawVertices = function(
+// PIXI.WebGLSpriteBatch.prototype._drawVertices = function(
 // 		baseTexture,
 // 		x1, y1, u1, v1, c1,
 // 		x2, y2, u2, v2, c2,
@@ -6389,7 +6571,7 @@ PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off)
 // 		x4, y4, u4, v4, c4)  
 // {
 // 	if (!this.drawing)
-// 		throw "Illegal State: trying to draw a SpriteBatch before begin()";
+// 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 // 	if (this.baseTexture != baseTexture) {
 // 		//new texture.. flush previous data
 // 		this.flush();
@@ -6406,7 +6588,7 @@ PIXI.SpriteBatch.prototype.drawVertices = function(texture, verts, off)
  * 
  * @method initialize
  */
-PIXI.SpriteBatch.prototype.initialize = function(gl)
+PIXI.WebGLSpriteBatch.prototype.initialize = function(gl)
 {
 	this.gl = gl;
 	this.vertexBuffer = gl.createBuffer();
@@ -6419,7 +6601,7 @@ PIXI.SpriteBatch.prototype.initialize = function(gl)
  *
  * @method destroy
  */
-PIXI.SpriteBatch.prototype.destroy = function()
+PIXI.WebGLSpriteBatch.prototype.destroy = function()
 {
 	this.vertices = [];
 	this.indices = [];
@@ -6451,6 +6633,7 @@ PIXI.WebGLRenderGroup = function(gl, extras)
 {
 	this.gl = gl;
 	this.root;
+	this.extras = extras;
 	
 	this.batchs = [];
 	this.toRemove = [];
@@ -6494,13 +6677,13 @@ PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 
 	var gl = this.gl;
 
-
+	PIXI.activateDefaultShader(); //could be done elswhere, but this is needed for context restoration
 	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 	// will render all the elements in the group
 	var renderable;
-	
+		
 	for (var i=0; i < this.batchs.length; i++) 
 	{
 
@@ -6510,7 +6693,6 @@ PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 			this.batchs[i].render();
 			continue;
 		}
-
 
 		//assume its an extra
 		this.extras.render(renderer, renderable, projection);
@@ -6570,7 +6752,7 @@ PIXI.WebGLRenderGroup.prototype.renderSpecific = function(renderer, displayObjec
 	}
 	var startBatch = nextRenderable.batch;
 
-	if(nextRenderable instanceof PIXI.Sprite)
+	if(nextRenderable instanceof PIXI.Sprite && !(nextRenderable instanceof PIXI.Sprite))
 	{
 		startBatch = nextRenderable.batch;
 
@@ -6608,7 +6790,7 @@ PIXI.WebGLRenderGroup.prototype.renderSpecific = function(renderer, displayObjec
 		if(lastItem.renderable)lastRenderable = lastItem;
 	}
 
-	if(lastRenderable instanceof PIXI.Sprite)
+	if(lastRenderable instanceof PIXI.Sprite && !(lastRenderable instanceof PIXI.TilingSprite))
 	{
 		endBatch = lastRenderable.batch;
 
@@ -6884,12 +7066,12 @@ PIXI.WebGLRenderGroup.prototype.insertObject = function(displayObject, previousO
 	 * so now we have the next renderable and the previous renderable
 	 *
 	 */
-	if(displayObject instanceof PIXI.Sprite)
+	if(displayObject instanceof PIXI.Sprite && !(displayObject instanceof PIXI.TilingSprite))
 	{
 		var previousBatch
 		var nextBatch
 
-		if(previousSprite instanceof PIXI.Sprite)
+		if(previousSprite instanceof PIXI.Sprite && !(previousSprite instanceof PIXI.TilingSprite))
 		{
 			previousBatch = previousSprite.batch;
 			if(previousBatch)
@@ -6909,7 +7091,7 @@ PIXI.WebGLRenderGroup.prototype.insertObject = function(displayObject, previousO
 
 		if(nextSprite)
 		{
-			if(nextSprite instanceof PIXI.Sprite)
+			if(nextSprite instanceof PIXI.Sprite && !(nextSprite instanceof PIXI.TilingSprite))
 			{
 				nextBatch = nextSprite.batch;
 
@@ -6995,7 +7177,7 @@ PIXI.WebGLRenderGroup.prototype.insertObject = function(displayObject, previousO
  */
 PIXI.WebGLRenderGroup.prototype.insertAfter = function(item, displayObject)
 {
-	if(displayObject instanceof PIXI.Sprite)
+	if(displayObject instanceof PIXI.Sprite && !(displayObject instanceof PIXI.TilingSprite))
 	{
 		var previousBatch = displayObject.batch;
 
@@ -7062,7 +7244,8 @@ PIXI.WebGLRenderGroup.prototype.removeObject = function(displayObject)
 	 */
 	var batchToRemove;
 
-	if(displayObject instanceof PIXI.Sprite)
+	//instanceof is NASTY and usually sign of code smell... HERE IS WHY!!!
+	if(displayObject instanceof PIXI.Sprite && !(displayObject instanceof PIXI.TilingSprite)) 
 	{
 		// should always have a batch!
 		var batch = displayObject.batch;
@@ -7116,7 +7299,25 @@ PIXI.WebGLRenderGroup.prototype.removeObject = function(displayObject)
 		this.batchs.splice(index, 1);
 		if(batchToRemove instanceof PIXI.WebGLBatch)PIXI.WebGLRenderer.returnBatch(batchToRemove);
 	}
-}
+};
+
+
+/**
+ * Handles context restore by re-initializing all batches.
+ *
+ * @method handleContextRestored
+ * @param gl {GLContext} the new GL context to use
+ */
+PIXI.WebGLRenderGroup.prototype.handleContextRestored = function(gl)
+{
+	this.gl = gl;
+	for (var i=0; i <  this.batchs.length; i++)
+	{	
+		if (this.batchs[i].restoreLostContext)
+			this.batchs[i].restoreLostContext(this.gl);
+		this.batchs[i].dirty = true;
+	}
+}; 
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -7221,7 +7422,7 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 
 	this.context.setTransform(1,0,0,1,0,0);
 	this.context.clearRect(0, 0, this.width, this.height)
-    this.renderDisplayObject(stage);
+    this.renderDisplayObject(stage, stage);
     //as
 
     // run interaction!
@@ -7299,6 +7500,21 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 		{
 
 			var frame = displayObject.texture.frame;
+			
+			//do some cullin' to avoid unnecessary calls to context drawImage
+			var showing = displayObject.isShowing();
+			if (showing
+					&& displayObject.stage 
+					&& !displayObject.stage.cullingRect 
+					&& !displayObject.cullingEnabled) {
+				displayObject._updateVertices();
+				showing = !displayObject._isCulled();
+			}
+
+			if (!showing) {
+				displayObject = displayObject.last._iNext;
+				continue;
+			}
 
 			if(frame && frame.width && frame.height)
 			{
@@ -7361,7 +7577,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				context.restore();
 			}
 		}
-	//	count++
+		count++
 		displayObject = displayObject._iNext;
 
 
@@ -8289,6 +8505,10 @@ PIXI.TilingSprite = function(texture, width, height)
 	 */
 	this.tileScale = new PIXI.Point(1,1);
 
+	//TODO: these should inherit from Sprite
+	this.anchor = new PIXI.Point();
+	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+
 	/**
 	 * The offset position of the image that is being tiled
 	 *
@@ -8334,6 +8554,74 @@ PIXI.TilingSprite.prototype.onTextureUpdate = function(event)
 	this.updateFrame = true;
 }
 
+//Really this should be a subclass of Sprite instead of duplicating code... 
+//but Sprite is not very extendible right now
+
+PIXI.TilingSprite.prototype._glDraw = function(renderer, projection) 
+{	
+	//don't draw anything if not visible!
+	if (!this.isShowing())
+		return;
+
+	if (this.texture && this.texture.baseTexture) {
+		//this is pretty darn nasty... should be managed by a WebGLTexture utility
+		if(!this.texture.baseTexture._powerOf2 && this.texture.baseTexture._glTexture) {
+			var gl = renderer.gl;
+	    	gl.bindTexture(gl.TEXTURE_2D, this.texture.baseTexture._glTexture);
+	    	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+			this.texture.baseTexture._powerOf2 = true;
+		} else {
+			this.texture.baseTexture._powerOf2 = true;
+		}
+
+		if (this.texture.baseTexture._glTexture) {
+			this._updateVertices();
+
+			if (this._isCulled()) {
+				return;
+			}
+
+			//set new blend mode (this will flush batch if different)
+			renderer.spriteBatch.setBlendMode(this.blendMode);
+			//draw the object (batch will be flushed if the texture is different)
+			renderer.spriteBatch.drawVertices(this.texture, this._vertices, 0);
+		}
+	}
+	//draw any children we might have in this sprite..
+	this._glDrawChildren(renderer, projection);
+};
+
+PIXI.TilingSprite.prototype._isCulled = function() {
+	return PIXI.Sprite.prototype._isCulled.call(this);
+};
+
+PIXI.TilingSprite.prototype._updateVertices = function() {
+	var out = PIXI.Sprite.prototype._updateVertices.call(this, this.width, this.height);
+
+	var tilePosition = this.tilePosition;
+	var tileScale = this.tileScale;
+	
+	var offsetX =  tilePosition.x/this.texture.baseTexture.width;
+	var offsetY =  tilePosition.y/this.texture.baseTexture.height;
+	
+	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
+	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
+ 	
+	out[2] = 0 - offsetX;
+	out[3] = 0 - offsetY;
+	
+	out[7] = (1 * scaleX)  -offsetX;
+	out[8] = 0 - offsetY;
+	
+	out[12] = (1 *scaleX) - offsetX;
+	out[13] = (1 *scaleY) - offsetY;
+	
+	out[17] = 0 - offsetX;
+	out[18] = (1 *scaleY) - offsetY;
+
+	return out;
+};
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -10469,6 +10757,10 @@ PIXI.RenderTexture.prototype.renderCanvas = function(displayObject, position, cl
   //  PIXI.texturesToUpdate.push(this.baseTexture);
 }
 
+PIXI.RenderTexture.prototype.isShowing = function() {
+	return this.vcount == PIXI.visibleCount;
+};
+
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -11292,3 +11584,4 @@ PIXI.SpineLoader.prototype.onLoaded = function () {
 return PIXI;
 
 });
+//@ sourceMappingURL=pixi.amd.dev.js.map

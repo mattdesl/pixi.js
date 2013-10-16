@@ -33,6 +33,7 @@ module.exports = function(grunt) {
             '<%= dirs.src %>/utils/EventTarget.js',
             '<%= dirs.src %>/utils/Detector.js',
             '<%= dirs.src %>/utils/Polyk.js',
+            '<%= dirs.src %>/time/Time.js',
             '<%= dirs.src %>/renderers/webgl/WebGLShaders.js',
             '<%= dirs.src %>/renderers/webgl/WebGLGraphics.js',
             '<%= dirs.src %>/renderers/webgl/WebGLExtras.js',
@@ -73,6 +74,12 @@ module.exports = function(grunt) {
             ''
         ].join('\n');
 
+
+    var srcFilesAMD = srcFiles.concat();
+    srcFilesAMD[ 0 ] = '<%= dirs.src %>/IntroAMD.js';
+    srcFilesAMD[ srcFilesAMD.length - 1 ] = '<%= dirs.src %>/OutroAMD.js';
+
+
     grunt.initConfig({
         pkg : grunt.file.readJSON('package.json'),
         dirs: {
@@ -86,7 +93,9 @@ module.exports = function(grunt) {
             srcBlob: '<%= dirs.src %>/**/*.js',
             testBlob: '<%= dirs.test %>/unit/**/*.js',
             build: '<%= dirs.build %>/pixi.dev.js',
-            buildMin: '<%= dirs.build %>/pixi.js'
+            buildMin: '<%= dirs.build %>/pixi.js',
+            buildAMD: '<%= dirs.build %>/pixi.amd.dev.js',
+            buildAMDMin: '<%= dirs.build %>/pixi.amd.js'
         },
         // concat: {
         //     options: {
@@ -103,6 +112,10 @@ module.exports = function(grunt) {
                     '<%= files.build %>': srcFiles
                 }
             },
+            devAMD: {
+                src: srcFilesAMD,
+                dest: '<%= files.buildAMD %>'  
+            }
         },
         jshint: {
             beforeconcat: srcFiles,
@@ -119,6 +132,10 @@ module.exports = function(grunt) {
             dist: {
                 src: '<%= files.build %>',
                 dest: '<%= files.buildMin %>'
+            },
+            distAMD: {
+                src: '<%= files.buildAMD %>',
+                dest: '<%= files.buildAMDMin %>'
             }
         },
         distribute: {
