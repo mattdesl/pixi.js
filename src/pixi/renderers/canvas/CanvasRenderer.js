@@ -69,7 +69,7 @@ PIXI.CanvasRenderer = function(width, height, view, transparent, targetFrameRate
 
     this.view.width = this.width;
 	this.view.height = this.height;
-	this.count = 0;
+	// this.count = 0;
 }
 
 // constructor
@@ -256,7 +256,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				context.restore();
 			}
 		}
-		count++
+		// count++
 		displayObject = displayObject._iNext;
 
 
@@ -280,7 +280,7 @@ PIXI.CanvasRenderer.prototype.renderStripFlat = function(strip)
 	var uvs = strip.uvs;
 
 	var length = verticies.length/2;
-	this.count++;
+	// this.count++;
 
 	context.beginPath();
 	for (var i=1; i < length-2; i++)
@@ -323,15 +323,27 @@ PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
 	var tilePosition = sprite.tilePosition;
 	var tileScale = sprite.tileScale;
 
+	context.save();
+    
     // offset
     context.scale(tileScale.x,tileScale.y);
     context.translate(tilePosition.x, tilePosition.y);
 
-	context.fillStyle = sprite.__tilePattern;
-	context.fillRect(-tilePosition.x,-tilePosition.y,sprite.width / tileScale.x, sprite.height / tileScale.y);
+	context.translate(
+		sprite.flipX ? (sprite.width / tileScale.x) : 0,
+		sprite.flipY ? (sprite.height / tileScale.y) : 0
+	);
+	context.scale( 
+		sprite.flipX ? -1 : 1,
+		sprite.flipY ? -1 : 1
+	);
 
-	context.scale(1/tileScale.x, 1/tileScale.y);
-    context.translate(-tilePosition.x, -tilePosition.y);
+	context.fillStyle = sprite.__tilePattern;
+	context.fillRect(-tilePosition.x,-tilePosition.y, 
+					sprite.width / tileScale.x, sprite.height / tileScale.y);
+
+	context.restore();
+
 
     context.closePath();
 }
@@ -352,7 +364,7 @@ PIXI.CanvasRenderer.prototype.renderStrip = function(strip)
 	var uvs = strip.uvs;
 
 	var length = verticies.length/2;
-	this.count++;
+	// this.count++;
 	for (var i=1; i < length-2; i++)
 	{
 
