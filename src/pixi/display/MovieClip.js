@@ -149,30 +149,30 @@ PIXI.MovieClip.prototype.updateTransform = function()
 	
 	this.currentFrame += this.animationSpeed * this.stage.time.timeScale;
 
-	var round = Math.round( this.currentFrame );
-	
-	if(this.loop || round < this.textures.length)
-	{
-		var nFrame = round % this.textures.length;
+    var round = Math.round( this.currentFrame );
+    
+    if(this.loop || round < this.textures.length)
+    {
+            var nFrame = round % this.textures.length;
 
-		if( nFrame < 0 ) {
+            if( nFrame < 0 ) {
 
-			nFrame += this.textures.length;
-		}
+                    nFrame += this.textures.length;
+            }
 
-		this.setTexture( this.textures[ nFrame ] );
-	}
-	else if(round <= 0 ) 
-	{
-		this.gotoAndStop( 0 );
-	}
-	else if(round >= this.textures.length)
-	{
-		this.gotoAndStop(this.textures.length - 1);
+            this.setTexture( this.textures[ nFrame ] );
+    }
+    else if(round <= 0 ) 
+    {
+            this.gotoAndStop( 0 );
+    }
+    else if(round >= this.textures.length)
+    {
+            this.gotoAndStop(this.textures.length - 1);
 
-		if(this.onComplete)
-		{
-			this.onComplete();
-		}
-	}
+            if(this.onComplete)
+            {
+                    this.onComplete();
+            }
+    }
 }

@@ -2203,32 +2203,32 @@ PIXI.MovieClip.prototype.updateTransform = function()
 	
 	this.currentFrame += this.animationSpeed * this.stage.time.timeScale;
 
-	var round = Math.round( this.currentFrame );
-	
-	if(this.loop || round < this.textures.length)
-	{
-		var nFrame = round % this.textures.length;
+    var round = Math.round( this.currentFrame );
+    
+    if(this.loop || round < this.textures.length)
+    {
+            var nFrame = round % this.textures.length;
 
-		if( nFrame < 0 ) {
+            if( nFrame < 0 ) {
 
-			nFrame += this.textures.length;
-		}
+                    nFrame += this.textures.length;
+            }
 
-		this.setTexture( this.textures[ nFrame ] );
-	}
-	else if(round <= 0 ) 
-	{
-		this.gotoAndStop( 0 );
-	}
-	else if(round >= this.textures.length)
-	{
-		this.gotoAndStop(this.textures.length - 1);
+            this.setTexture( this.textures[ nFrame ] );
+    }
+    else if(round <= 0 ) 
+    {
+            this.gotoAndStop( 0 );
+    }
+    else if(round >= this.textures.length)
+    {
+            this.gotoAndStop(this.textures.length - 1);
 
-		if(this.onComplete)
-		{
-			this.onComplete();
-		}
-	}
+            if(this.onComplete)
+            {
+                    this.onComplete();
+            }
+    }
 }
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -5394,6 +5394,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	if(this.contextLost)
 		return;
 
+    stage.time = this.time;
 
 	// if rendering a new stage clear the batchs..
 	if(this.__stage !== stage)
@@ -5406,7 +5407,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			this.stageRenderGroup.setRenderable(stage);
 	}
 
-    stage.time = this.time;
         
 	// TODO not needed now...
 	// update children if need be
@@ -5463,6 +5463,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 		PIXI.Texture.frameUpdates = [];
 	}
+	
+	this.time.update();
 }
 
 /**
@@ -8524,6 +8526,9 @@ PIXI.TilingSprite = function(texture, width, height)
 
 	this.renderable = true;
 
+	this.flipY = false;
+	this.flipX = false;
+
 	this.blendMode = PIXI.blendModes.NORMAL
 }
 
@@ -8613,6 +8618,8 @@ PIXI.TilingSprite.prototype._updateVertices = function() {
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
  	
+	
+
 	out[2] = 0 - offsetX;
 	out[3] = 0 - offsetY;
 	

@@ -219,6 +219,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	if(this.contextLost)
 		return;
 
+    stage.time = this.time;
 
 	// if rendering a new stage clear the batchs..
 	if(this.__stage !== stage)
@@ -231,7 +232,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			this.stageRenderGroup.setRenderable(stage);
 	}
 
-    stage.time = this.time;
         
 	// TODO not needed now...
 	// update children if need be
@@ -288,6 +288,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 		PIXI.Texture.frameUpdates = [];
 	}
+	
+	this.time.update();
 }
 
 /**

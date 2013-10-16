@@ -62,6 +62,9 @@ PIXI.TilingSprite = function(texture, width, height)
 
 	this.renderable = true;
 
+	this.flipY = false;
+	this.flipX = false;
+
 	this.blendMode = PIXI.blendModes.NORMAL
 }
 
@@ -151,6 +154,8 @@ PIXI.TilingSprite.prototype._updateVertices = function() {
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
  	
+	
+
 	out[2] = 0 - offsetX;
 	out[3] = 0 - offsetY;
 	
