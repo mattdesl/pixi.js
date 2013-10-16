@@ -147,6 +147,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  */
 PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
+PIXI.WebGLRenderer.throttleTextureUploads = false;
 
 PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
 {
@@ -285,9 +286,22 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 PIXI.WebGLRenderer.updateTextures = function()
 {
 	//TODO break this out into a texture manager...
-	for (var i=0; i < PIXI.texturesToUpdate.length; i++) PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+	
+	//throttle texture uploads
+	if (PIXI.WebGLRenderer.throttleTextureUploads) {
+		if (PIXI.texturesToUpdate.length) {
+			var tex = PIXI.texturesToUpdate.shift();
+			PIXI.WebGLRenderer.updateTexture(tex);
+		}
+	} else {
+		for (var i=0; i < PIXI.texturesToUpdate.length; i++) {
+			PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+		}
+		PIXI.texturesToUpdate = [];
+	}
+	
+	//texture deletes will be fast, so do em all in one.
 	for (var i=0; i < PIXI.texturesToDestroy.length; i++) PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
-	PIXI.texturesToUpdate = [];
 	PIXI.texturesToDestroy = [];
 }
 
