@@ -1,3 +1,54 @@
+## CHANGES
+
+This fork introduces some major changes to PIXI's WebGL backend.
+
+- TilingSprite includes a "flipX" and "flipY" feature to flip horizontally/vertically. This is added to all backends/batch modes.
+- Context loss fixes. See [here](https://github.com/GoodBoyDigital/pixi.js/pull/357).
+- Uses concat_sourcemap for better debugging. All examples reference the same build to improve build time and unify the distribution of PIXI.
+- Instead of uploading all textures at once (which can cause drastic drops in FPS), now they can be throttled one per frame. This is disabled by default; use `PIXI.WebGLRenderer.throttleTextureUploads = true`
+- Custom sprite batcher:
+    - A sprite and its children will be culled if `visible` is false or if the sprite is not within the stage (optional). This greatly improves performance.
+    - Previously TilingSprite was only resizable in the canvas backend. The custom sprite batcher now supports resizing TilingSprite on the fly.
+    - The custom sprite batcher no longer needs a separate shader/batch to render a tiling sprite. They are all rendered in the same batch as the rest of your Sprites. This should reduce state switches and improve performance. 
+
+Example:
+```javascript
+this.stage = new PIXI.Stage( ... );
+
+//enable single buffer batching
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+
+//max # of sprites in batch.. default is 500.. play around with this
+PIXI.WebGLRenderer.batchSize = 400; 
+
+//Optionally "throttle" texture uploads. By default, this is disabled
+//Since texture uploads can stall GL rendering we don't want to do too many per frame
+PIXI.WebGLRenderer.throttleTextureUploads = true; 
+
+//renderer...
+this.renderer = new PIXI.autoDetectRenderer( sceneWidth, sceneHeight, ... );
+
+//Optionally we can add in culling for more optimizations.
+//This will not render a sprite to GPU if it's outside of the given bounds, even if "sprite.visible = true"
+//If we leave cullingRect as undefined then culling will be disabled
+this.stage.cullingRect = new PIXI.Rectangle(0, 0, sceneWidth, sceneHeight);
+```
+
+I also wrote another batcher that is slightly different from the first. Instead of flushing the batch for every texture switch, it tries to render up to 4 textures in the same batch. In a typical scene in our game this has reduced render calls per frame from ~40 to ~5. The technique is described here:
+http://webglsamples.googlecode.com/hg/sprites/readme.html
+
+Instead of setting mode to `BATCH_SIMPLE`, we can set it to `BATCH_MULTITEXTURE` to try out the new rendering technique.
+
+You can debug the render calls per frame with `PIXI.AbstractBatch.totalRenderCalls`:
+```javascript
+
+PIXI.AbstractBatch.totalRenderCalls = 0; //reset to zero
+
+renderer.render(stage);
+
+console.log( "Render Calls:", PIXI.AbstractBatch.totalRenderCalls ); //display render calls for this frame
+```
+
 Pixi Renderer
 =============
 
