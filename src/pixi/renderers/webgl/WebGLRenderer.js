@@ -319,7 +319,7 @@ PIXI.WebGLRenderer.updateTextures = function()
 	//texture deletes will be fast, so do em all in one.
 	for (var i=0; i < PIXI.texturesToDestroy.length; i++) PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
 	PIXI.texturesToDestroy = [];
-}
+};
 
 /**
  * Updates a loaded webgl texture

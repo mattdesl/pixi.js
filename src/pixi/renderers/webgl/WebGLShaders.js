@@ -167,7 +167,8 @@ PIXI.CompileFragmentShader = function(gl, shaderSrc)
 
 PIXI._CompileShader = function(gl, shaderSrc, shaderType)
 {
-  var src = shaderSrc.join("\n");
+  //if source is a string, don't try to join it.
+  var src = typeof shaderSrc === "string" ? shaderSrc : shaderSrc.join("\n");
   var shader = gl.createShader(shaderType);
   gl.shaderSource(shader, src);
   gl.compileShader(shader);
@@ -181,7 +182,7 @@ PIXI._CompileShader = function(gl, shaderSrc, shaderType)
 }
 
 
-PIXI.compileProgram = function(vertexSrc, fragmentSrc)
+PIXI.compileProgram = function(vertexSrc, fragmentSrc, attribLocations)
 {
 	var gl = PIXI.gl;
 	var fragmentShader = PIXI.CompileFragmentShader(gl, fragmentSrc);
@@ -189,13 +190,21 @@ PIXI.compileProgram = function(vertexSrc, fragmentSrc)
 
 	var shaderProgram = gl.createProgram();
 
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
+  gl.attachShader(shaderProgram, vertexShader);
+  gl.attachShader(shaderProgram, fragmentShader);
 
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert("Could not initialise shaders");
+  if (attribLocations) {
+    for (var key in attribLocations) {
+      if (attribLocations.hasOwnProperty(key))
+        gl.bindAttribLocation(shaderProgram, attribLocations[key], key);
     }
+  }
+
+  gl.linkProgram(shaderProgram);
+
+  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+      alert("Could not initialise shaders");
+  }
 
 	return shaderProgram;
 }

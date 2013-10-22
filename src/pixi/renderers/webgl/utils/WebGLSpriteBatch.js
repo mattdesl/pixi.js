@@ -28,12 +28,12 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 	this.size = size || 500;
 	this.currentShader = null;
 
-	// 32767 is max index, so 32767 / 6 - (32767 / 6 % 3) = 5460.
-	if (this.size > 5460) 
-		throw "Can't have more than 5460 sprites per batch: " + this.size;
+	// 65535 is max index, so 65535 / 6 = 10922.
+	if (this.size > 10922)  //(you'd have to be insane to try and batch this much with WebGL)
+		throw "Can't have more than 10922 sprites per batch: " + this.size;
 
 	//the total number of floats in our batch
-	var numVerts = this.size * 4 * PIXI.Sprite.VERTEX_SIZE;
+	var numVerts = this.size * 4 * this._getVertexSize();
 	//the total number of indices in our batch
 	var numIndices = this.size * 6;
 
@@ -51,7 +51,7 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 		this.indices[i + 3] = j + 0;
 		this.indices[i + 4] = j + 2;
 		this.indices[i + 5] = j + 3;
-	};
+	}
 
 	//upload the index data
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -60,7 +60,6 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 	//null means "use the default"
 	this.currentShader = null;
 
-	this.boundsCheck = true;
 
 	this.idx = 0;
 	this.drawing = false;
@@ -73,6 +72,12 @@ PIXI.WebGLSpriteBatch.totalRenderCalls = 0;
 // constructor
 PIXI.WebGLSpriteBatch.constructor = PIXI.WebGLSpriteBatch;
 
+// for subclasses to implement (i.e. extra attribs)
+PIXI.WebGLSpriteBatch.prototype._getVertexSize = function()
+{
+	return PIXI.Sprite.VERTEX_SIZE;
+}
+
 //TODO: implement...
 PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
 {
@@ -82,12 +87,11 @@ PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds) 
+PIXI.WebGLSpriteBatch.prototype.begin = function(projection) 
 {
 	if (this.drawing)
 		throw "WebGLSpriteBatch.end() must be called before begin";
 
-	this.bounds = bounds;
 
 	//update any textures before trying to render..
 	PIXI.WebGLRenderer.updateTextures();
@@ -104,7 +108,7 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds)
 
 	//bind the shader
 	PIXI.activateDefaultShader();
-
+	
 	//upload projection uniform
 	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
 
@@ -118,7 +122,7 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds)
 	this.drawing = true;
 };
 
-PIXI.WebGLSpriteBatch.prototype.end = function(projection) 
+PIXI.WebGLSpriteBatch.prototype.end = function() 
 {
 	if (!this.drawing)
 		throw "WebGLSpriteBatch.begin() must be called before end";
@@ -194,7 +198,7 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 	var verts =	sprite._updateVertices();
 	// TODO: we can remove this duplicate code with drawVertices
 	
-///TODO: loop ?
+	///TODO: loop ?
 	var off = 0;
 	//xy
 	this.vertices[this.idx++] = verts[off++];
@@ -228,7 +232,7 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 	this.vertices[this.idx++] = verts[off++];
 	//color
 	this.vertices[this.idx++] = verts[off++];
-}
+};
 
 /**
  * Adds a single set of vertices to this sprite batch (20 floats).

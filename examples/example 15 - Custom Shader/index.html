@@ -23,7 +23,8 @@
 	// PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
 
 	// create a renderer instance
-	var renderer = new PIXI.WebGLRenderer(800, 600);
+	var width = 800, height = 600;
+	var renderer = new PIXI.WebGLRenderer(width, height);
 	
 	
 	// add the renderer view element to the DOM
@@ -47,16 +48,16 @@
 	bunny.position.y = 150;
 	
 	var buttons = [];
-	stage.addChild(bunny); 
 
 	var buttonPositions = [175,75,
 						   600-145, 75,
 						   600/2 - 20, 400/2 + 10,
 						   175, 400-75,
 						   600-115, 400-95];
+
 	for (var i=0; i < 5; i++) 
 	{
-		var button = new PIXI.Sprite(texture);
+		var button = new PIXI.Sprite.fromImage(["button.png", "buttonDown.png", "buttonOver.png"][i % 3]);
 		
 		button.anchor.x = 0.5;
 		button.anchor.y = 0.5;
@@ -68,7 +69,8 @@
 		buttons.push(button);
 	}
 
-	
+	stage.addChild(bunny); 
+	 
 	buttons[0].scale.x = 1.2;
 	 
 	buttons[1].scale.y = 1.2;
@@ -82,19 +84,39 @@
 	buttons[4].scale.y = 1.2;
 	buttons[4].rotation = Math.PI;
 
-	// var batch = new PIXI.WebGLSpriteBatch(PIXI.gl);
+	var batch = new PIXI.WebGLAdvancedBatch(PIXI.gl);
+	console.log(batch);
 	
 	function animate() {
-	
 	    requestAnimFrame( animate );
-
 
 	    // just for fun, lets rotate mr rabbit a little
 	    bunny.rotation += 0.1;
 
-		
-	    // render the stage   
-	    renderer.render(stage);
+
+		// update any textures
+		PIXI.WebGLRenderer.updateTextures();
+
+		// update the scene graph
+		PIXI.visibleCount++;
+		stage.updateTransform();
+
+		var gl = PIXI.gl;
+
+		// -- Does this need to be set every frame? -- //
+	 	gl.colorMask(true, true, true, false);
+		gl.viewport(0, 0, width, height);
+
+	  	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+		gl.clearColor(stage.backgroundColorSplit[0], stage.backgroundColorSplit[1], stage.backgroundColorSplit[2], 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+	    batch.begin(PIXI.projection);
+	    
+	    batch.drawSprite(buttons[0]);
+	    batch.drawSprite(bunny);
+	    batch.end();
 	}
 
 	</script>

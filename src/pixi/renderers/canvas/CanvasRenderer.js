@@ -328,6 +328,15 @@ PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
     // offset
     context.scale(tileScale.x,tileScale.y);
     context.translate(tilePosition.x, tilePosition.y);
+    
+	context.translate(
+		sprite.flipX ? (sprite.width / tileScale.x) : 0,
+		sprite.flipY ? (sprite.height / tileScale.y) : 0
+	);
+	context.scale( 
+		sprite.flipX ? -1 : 1,
+		sprite.flipY ? -1 : 1
+	);
 
 	context.translate(
 		sprite.flipX ? (sprite.width / tileScale.x) : 0,

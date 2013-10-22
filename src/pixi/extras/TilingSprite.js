@@ -62,8 +62,8 @@ PIXI.TilingSprite = function(texture, width, height)
 
 	this.renderable = true;
 
-	this.flipY = false;
 	this.flipX = false;
+	this.flipY = false;
 
 	this.blendMode = PIXI.blendModes.NORMAL
 }
