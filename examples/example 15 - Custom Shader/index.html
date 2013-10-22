@@ -20,7 +20,7 @@
 	// create an new instance of a pixi stage
 	var stage = new PIXI.Stage(0x66FF99);
 	
-	// PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+	PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_MULTITEXTURE;
 
 	// create a renderer instance
 	var width = 800, height = 600;
@@ -57,7 +57,7 @@
 
 	for (var i=0; i < 5; i++) 
 	{
-		var button = new PIXI.Sprite.fromImage(["button.png", "buttonDown.png", "buttonOver.png"][i % 3]);
+		var button = new PIXI.Sprite.fromImage(["button.png", "buttonDown.png", "buttonOver.png", "panda.png", "pixi.png"][i % 5]);
 		
 		button.anchor.x = 0.5;
 		button.anchor.y = 0.5;
@@ -84,39 +84,44 @@
 	buttons[4].scale.y = 1.2;
 	buttons[4].rotation = Math.PI;
 
-	var batch = new PIXI.WebGLSpriteBatch2(PIXI.gl);
-	console.log(batch);
+	// var batch = new PIXI.WebGLSpriteBatch(PIXI.gl);
+	// console.log(batch);
 	
 	function animate() {
 	    requestAnimFrame( animate );
 
 	    // just for fun, lets rotate mr rabbit a little
 	    bunny.rotation += 0.1;
+  
+	    renderer.render(stage);
 
+		// // update any textures
+		// PIXI.WebGLRenderer.updateTextures();
 
-		// update any textures
-		PIXI.WebGLRenderer.updateTextures();
+		// // update the scene graph
+		// PIXI.visibleCount++;
+		// stage.updateTransform();
 
-		// update the scene graph
-		PIXI.visibleCount++;
-		stage.updateTransform();
+		// var gl = PIXI.gl;
 
-		var gl = PIXI.gl;
+		// // -- Does this need to be set every frame? -- //
+	 // 	gl.colorMask(true, true, true, false);
+		// gl.viewport(0, 0, width, height);
 
-		// -- Does this need to be set every frame? -- //
-	 	gl.colorMask(true, true, true, false);
-		gl.viewport(0, 0, width, height);
+	 //  	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-	  	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		// gl.clearColor(stage.backgroundColorSplit[0], stage.backgroundColorSplit[1], stage.backgroundColorSplit[2], 1.0);
+		// gl.clear(gl.COLOR_BUFFER_BIT);
 
-		gl.clearColor(stage.backgroundColorSplit[0], stage.backgroundColorSplit[1], stage.backgroundColorSplit[2], 1.0);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-
-	    batch.begin(PIXI.projection);
+	 //    batch.begin(PIXI.projection);
 	    
-	    batch.drawSprite(buttons[0]);
-	    batch.drawSprite(bunny);
-	    batch.end();
+	 //    batch.drawSprite(buttons[0]);
+	 //    batch.drawSprite(bunny);
+	 //    batch.drawSprite(buttons[1]);
+	 //    batch.drawSprite(buttons[2]);
+	 //    batch.drawSprite(buttons[3]);
+	 //    batch.drawSprite(buttons[4]);
+	 //    batch.end();
 	}
 
 	</script>

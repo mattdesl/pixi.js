@@ -10,11 +10,6 @@ PIXI.WebGLAdvancedBatch = function(gl, size)
 
 	this.textureStack = [];
 
-	//ensure the stack is the correct size to start with
-	var i = PIXI.WebGLAdvancedBatch.MAX_TEXTURES;
-	while (i--) {
-		this.textureStack.push( null );
-	}
 	this.texturePointer = 0;
 
 	this.shaderProgram = this._createShader();
@@ -261,6 +256,8 @@ PIXI.WebGLAdvancedBatch.prototype.drawVertices = function(texture, verts, off)
 	
 	//it's a NEW texture
 	if (cachedIndex == -1) {
+
+
 		//we are still under 4 textures.. so just add this texture to the stack
 		if (this.texturePointer < PIXI.WebGLAdvancedBatch.MAX_TEXTURES) {
 			//the index of the texture for this sprite
@@ -272,7 +269,7 @@ PIXI.WebGLAdvancedBatch.prototype.drawVertices = function(texture, verts, off)
 			//increment for subsequent calls
 			this.texturePointer++;
 		} 
-		//the stack is full.. we need to flush the batch and reset the counter
+		//the stack is full.. we need to flush the batch and reset the counter before drawing
 		else {
 			//flush old batch
 			this.flush();
@@ -282,6 +279,9 @@ PIXI.WebGLAdvancedBatch.prototype.drawVertices = function(texture, verts, off)
 			
 			//update current index after clearing stack
 			this.texturePointer = 1;
+
+			//set first texture...
+			this.textureStack[0] = glTex;
 
 			//the index of the texture for this sprite
 			cachedIndex = 0;
