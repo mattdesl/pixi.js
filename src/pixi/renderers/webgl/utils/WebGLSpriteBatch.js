@@ -92,16 +92,11 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection)
 	if (this.drawing)
 		throw "WebGLSpriteBatch.end() must be called before begin";
 
-
-	//update any textures before trying to render..
-	PIXI.WebGLRenderer.updateTextures();
-	
 	var gl = this.gl;
-	projection = projection || PIXI.projection;
+	projection = projection;
 
 	//disable depth mask
 	gl.depthMask(false);
-
 
 	//activate texture0
 	gl.activeTexture(gl.TEXTURE0);

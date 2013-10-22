@@ -94,7 +94,7 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
-    	this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	this.spriteBatch = new PIXI.WebGLAdvancedBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
  
     //can simulate context loss in Chrome like so:
@@ -157,7 +157,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  * @param  {batchMode} batchMode
  * @default PIXI.WebGLRenderer.BATCH_GROUPS
  */
-PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
 PIXI.WebGLRenderer.batchSize = 500;
 PIXI.WebGLRenderer.throttleTextureUploads = false;
 
@@ -166,7 +166,7 @@ PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection)
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
-		this.spriteBatch.begin();
+		this.spriteBatch.begin(projection);
 		stage._glDraw(this, projection);
 		this.spriteBatch.end();
 	}

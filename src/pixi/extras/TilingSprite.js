@@ -129,7 +129,7 @@ PIXI.TilingSprite.prototype._glDraw = function(renderer, projection)
 			}
 
 			//set new blend mode (this will flush batch if different)
-			renderer.spriteBatch.setBlendMode(this.blendMode);
+			renderer.spriteBatch.blendMode = this.blendMode;
 			//draw the object (batch will be flushed if the texture is different)
 			renderer.spriteBatch.drawVertices(this.texture, this._vertices, 0);
 		}
