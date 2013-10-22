@@ -4092,7 +4092,8 @@ PIXI.CompileFragmentShader = function(gl, shaderSrc)
 
 PIXI._CompileShader = function(gl, shaderSrc, shaderType)
 {
-  var src = shaderSrc.join("\n");
+  //if source is a string, don't try to join it.
+  var src = typeof shaderSrc === "string" ? shaderSrc : shaderSrc.join("\n");
   var shader = gl.createShader(shaderType);
   gl.shaderSource(shader, src);
   gl.compileShader(shader);
@@ -4106,7 +4107,7 @@ PIXI._CompileShader = function(gl, shaderSrc, shaderType)
 }
 
 
-PIXI.compileProgram = function(vertexSrc, fragmentSrc)
+PIXI.compileProgram = function(vertexSrc, fragmentSrc, attribLocations)
 {
 	var gl = PIXI.gl;
 	var fragmentShader = PIXI.CompileFragmentShader(gl, fragmentSrc);
@@ -4114,13 +4115,21 @@ PIXI.compileProgram = function(vertexSrc, fragmentSrc)
 
 	var shaderProgram = gl.createProgram();
 
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
+  gl.attachShader(shaderProgram, vertexShader);
+  gl.attachShader(shaderProgram, fragmentShader);
 
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert("Could not initialise shaders");
+  if (attribLocations) {
+    for (var key in attribLocations) {
+      if (attribLocations.hasOwnProperty(key))
+        gl.bindAttribLocation(shaderProgram, attribLocations[key], key);
     }
+  }
+
+  gl.linkProgram(shaderProgram);
+
+  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+      alert("Could not initialise shaders");
+  }
 
 	return shaderProgram;
 }
@@ -4968,18 +4977,26 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 	var scaleX =  (sprite.width / sprite.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (sprite.height / sprite.texture.baseTexture.height) / tileScale.y;
 
-	sprite.uvs[0] = 0 - offsetX;
-	sprite.uvs[1] = 0 - offsetY;
+	var u1 = this.flipX ? ((1 * scaleX) - offsetX) : 0 - offsetX;
+	var u2 = this.flipX ? 0 - offsetX : ((1 * scaleX) - offsetX);
+
+	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
+	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
+
+	//TODO: change vertices for size...
+
+	sprite.uvs[0] = u1;
+	sprite.uvs[1] = v1;
 	
-	sprite.uvs[2] = (1 * scaleX)  -offsetX;
-	sprite.uvs[3] = 0 - offsetY;
+	sprite.uvs[2] = u2;
+	sprite.uvs[3] = v1;
 	
-	sprite.uvs[4] = (1 *scaleX) - offsetX;
-	sprite.uvs[5] = (1 *scaleY) - offsetY;
+	sprite.uvs[4] = u2;
+	sprite.uvs[5] = v2;
 	
-	sprite.uvs[6] = 0 - offsetX;
-	sprite.uvs[7] = (1 *scaleY) - offsetY;
-	
+	sprite.uvs[6] = u1;
+	sprite.uvs[7] = v2;
+
 	gl.bindBuffer(gl.ARRAY_BUFFER, sprite._uvBuffer);
 	gl.bufferSubData(gl.ARRAY_BUFFER, 0, sprite.uvs)
 	
@@ -5167,6 +5184,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  */
 PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
+PIXI.WebGLRenderer.throttleTextureUploads = false;
 
 PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
 {
@@ -5305,11 +5323,24 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 PIXI.WebGLRenderer.updateTextures = function()
 {
 	//TODO break this out into a texture manager...
-	for (var i=0; i < PIXI.texturesToUpdate.length; i++) PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+	
+	//throttle texture uploads
+	if (PIXI.WebGLRenderer.throttleTextureUploads) {
+		if (PIXI.texturesToUpdate.length) {
+			var tex = PIXI.texturesToUpdate.shift();
+			PIXI.WebGLRenderer.updateTexture(tex);
+		}
+	} else {
+		for (var i=0; i < PIXI.texturesToUpdate.length; i++) {
+			PIXI.WebGLRenderer.updateTexture(PIXI.texturesToUpdate[i]);
+		}
+		PIXI.texturesToUpdate = [];
+	}
+	
+	//texture deletes will be fast, so do em all in one.
 	for (var i=0; i < PIXI.texturesToDestroy.length; i++) PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
-	PIXI.texturesToUpdate = [];
 	PIXI.texturesToDestroy = [];
-}
+};
 
 /**
  * Updates a loaded webgl texture
@@ -6096,6 +6127,190 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
     gl.drawElements(gl.TRIANGLES, len * 6, gl.UNSIGNED_SHORT, start * 2 * 6 );
 }
 
+
+/**
+ * An abstract batcher composed of quads (two tris, indexed).
+ * 
+ * @param {[type]} gl   [description]
+ * @param {[type]} size [description]
+ */
+PIXI.AbstractBatch = function(gl, size)
+{
+	this.initialize(gl);
+	this.size = size || 500;
+	
+	// 65535 is max index, so 65535 / 6 = 10922.
+	if (this.size > 10922)  //(you'd have to be insane to try and batch this much with WebGL)
+		throw "Can't have more than 10922 sprites per batch: " + this.size;
+	
+	//the total number of floats in our batch
+	var numVerts = this.size * 4 * this.getVertexSize();
+	//the total number of indices in our batch
+	var numIndices = this.size * 6;
+
+
+	//TODO: use properties here
+	//current blend mode.. changing it flushes the batch
+	this.blendMode = PIXI.blendModes.NORMAL;
+
+	//vertex data
+	this.vertices = new Float32Array(numVerts);
+	//index data
+	this.indices = new Uint16Array(numIndices); 
+	
+	for (var i=0, j=0; i < numIndices; i += 6, j += 4) 
+	{
+		this.indices[i + 0] = j + 0; 
+		this.indices[i + 1] = j + 1;
+		this.indices[i + 2] = j + 2;
+		this.indices[i + 3] = j + 0;
+		this.indices[i + 4] = j + 2;
+		this.indices[i + 5] = j + 3;
+	};
+
+	//upload the index data
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	this.idx = 0;
+	this.drawing = false;
+};
+
+
+
+PIXI.AbstractBatch.totalRenderCalls = 0;
+
+
+// constructor
+PIXI.AbstractBatch.constructor = PIXI.AbstractBatch;
+
+
+
+
+// for subclasses to implement (i.e. extra attribs)
+PIXI.AbstractBatch.prototype.getVertexSize = function()
+{
+	return PIXI.Sprite.VERTEX_SIZE;
+};
+
+/** 
+ * Begins the sprite batch. Subclasses should then bind shaders,
+ * upload projection matrix, and bind textures.
+ */
+PIXI.AbstractBatch.prototype.begin = function(projection) 
+{
+	if (this.drawing) 
+		throw "batch.end() must be called before begin";
+	this.drawing = true;
+
+	var gl = this.gl; 
+	projection = projection || PIXI.projection; //TODO: get rid of these statics!
+
+	//disable depth mask
+	gl.depthMask(false);
+
+	//premultiplied alpha
+	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+
+	//bind the element buffer
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+};
+
+PIXI.AbstractBatch.prototype.end = function() 
+{
+	if (!this.drawing)
+		throw "batch.begin() must be called before end";
+	if (this.idx > 0)
+		this.flush();
+	this.drawing = false;
+
+	this.gl.depthMask(true); //reset to default WebGL state
+};
+
+/** 
+ * Called before rendering to bind new textures and setup
+ * vertex attribute pointers. This method does nothing by default.
+ */
+PIXI.AbstractBatch.prototype._bind = function() 
+{
+};
+
+PIXI.AbstractBatch.prototype.flush = function() 
+{
+	if (this.idx===0)
+		return;
+
+    var gl = this.gl;
+    
+    PIXI.AbstractBatch.totalRenderCalls++;
+
+	//bind our vertex buffer
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+	//upload the new data.. we are not changing the size as that may allocate new memory
+	gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
+
+	//setup our vertex attributes & binds textures
+	//TODO: move this to begin to remove redundant GL calls?
+	this._bind();
+
+	//number of sprites in batch
+	var numComponents = this.getVertexSize();
+	var spriteCount = (this.idx / (numComponents * 4));
+ 	
+ 	//draw the sprites
+    gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
+    
+    this.idx = 0;
+};
+
+/**
+ * Renders a sprite.
+ */
+PIXI.AbstractBatch.prototype.drawSprite = function(sprite) 
+{
+
+};
+
+/**
+ * Adds a single set of vertices to this sprite batch (20 floats).
+ */
+PIXI.AbstractBatch.prototype.drawVertices = function(texture, verts, off) 
+{
+
+};
+
+/**
+ * Initializes the buffers, replacing the old ones, i.e. on context restoration.
+ * Does not delete old buffers -- use destroy() for that.
+ * 
+ * @method initialize
+ */
+PIXI.AbstractBatch.prototype.initialize = function(gl)
+{
+	this.gl = gl;
+	this.vertexBuffer = gl.createBuffer();
+	this.indexBuffer = gl.createBuffer();
+};
+
+/**
+ * Destroys the batch, deleting its buffers. Trying to use this
+ * batch after destroying it can lead to unpredictable behaviour.
+ *
+ * @method destroy
+ */
+PIXI.AbstractBatch.prototype.destroy = function()
+{
+	this.vertices = [];
+	this.indices = [];
+	this.size = this.maxVertices = 0;
+	if (this.vertexBuffer !== null)
+		this.gl.deleteBuffer(this.vertexBuffer);
+	if (this.indexBuffer !== null)
+		this.gl.deleteBuffer(this.indexBuffer);
+};
+
 /**
  * @author Matt DesLauriers <mattdesl> https://github.com/mattdesl/
  * 
@@ -6126,12 +6341,12 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 	this.size = size || 500;
 	this.currentShader = null;
 
-	// 32767 is max index, so 32767 / 6 - (32767 / 6 % 3) = 5460.
-	if (this.size > 5460) 
-		throw "Can't have more than 5460 sprites per batch: " + this.size;
+	// 65535 is max index, so 65535 / 6 = 10922.
+	if (this.size > 10922)  //(you'd have to be insane to try and batch this much with WebGL)
+		throw "Can't have more than 10922 sprites per batch: " + this.size;
 
 	//the total number of floats in our batch
-	var numVerts = this.size * 4 * PIXI.Sprite.VERTEX_SIZE;
+	var numVerts = this.size * 4 * this._getVertexSize();
 	//the total number of indices in our batch
 	var numIndices = this.size * 6;
 
@@ -6149,7 +6364,7 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 		this.indices[i + 3] = j + 0;
 		this.indices[i + 4] = j + 2;
 		this.indices[i + 5] = j + 3;
-	};
+	}
 
 	//upload the index data
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -6158,7 +6373,6 @@ PIXI.WebGLSpriteBatch = function(gl, size)
 	//null means "use the default"
 	this.currentShader = null;
 
-	this.boundsCheck = true;
 
 	this.idx = 0;
 	this.drawing = false;
@@ -6171,6 +6385,12 @@ PIXI.WebGLSpriteBatch.totalRenderCalls = 0;
 // constructor
 PIXI.WebGLSpriteBatch.constructor = PIXI.WebGLSpriteBatch;
 
+// for subclasses to implement (i.e. extra attribs)
+PIXI.WebGLSpriteBatch.prototype._getVertexSize = function()
+{
+	return PIXI.Sprite.VERTEX_SIZE;
+}
+
 //TODO: implement...
 PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
 {
@@ -6180,12 +6400,11 @@ PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
 	this.blendMode = blendMode;
 };
 
-PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds) 
+PIXI.WebGLSpriteBatch.prototype.begin = function(projection) 
 {
 	if (this.drawing)
 		throw "WebGLSpriteBatch.end() must be called before begin";
 
-	this.bounds = bounds;
 
 	//update any textures before trying to render..
 	PIXI.WebGLRenderer.updateTextures();
@@ -6202,7 +6421,7 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds)
 
 	//bind the shader
 	PIXI.activateDefaultShader();
-
+	
 	//upload projection uniform
 	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
 
@@ -6216,7 +6435,7 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection, bounds)
 	this.drawing = true;
 };
 
-PIXI.WebGLSpriteBatch.prototype.end = function(projection) 
+PIXI.WebGLSpriteBatch.prototype.end = function() 
 {
 	if (!this.drawing)
 		throw "WebGLSpriteBatch.begin() must be called before end";
@@ -6277,6 +6496,10 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
 	var texture = sprite.texture;
 
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
+
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
 		this.flush();
@@ -6288,7 +6511,7 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 	var verts =	sprite._updateVertices();
 	// TODO: we can remove this duplicate code with drawVertices
 	
-///TODO: loop ?
+	///TODO: loop ?
 	var off = 0;
 	//xy
 	this.vertices[this.idx++] = verts[off++];
@@ -6322,7 +6545,7 @@ PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite)
 	this.vertices[this.idx++] = verts[off++];
 	//color
 	this.vertices[this.idx++] = verts[off++];
-}
+};
 
 /**
  * Adds a single set of vertices to this sprite batch (20 floats).
@@ -6331,6 +6554,10 @@ PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off)
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
+	
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
 	
 	if (this.baseTexture != texture.baseTexture) {
 		//new texture.. flush previous data
@@ -6425,6 +6652,557 @@ PIXI.WebGLSpriteBatch.prototype.destroy = function()
 		this.gl.deleteBuffer(this.vertexBuffer);
 	if (this.indexBuffer !== null)
 		this.gl.deleteBuffer(this.indexBuffer);
+};
+/**
+ * @author Matt DesLauriers <mattdesl> https://github.com/mattdesl/
+ * 
+ * Heavily inspired by LibGDX's WebGLSpriteBatch:
+ * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/WebGLSpriteBatch.java
+ */
+
+PIXI.WebGLSpriteBatch2 = function(gl, size)
+{
+	//constructor
+	PIXI.AbstractBatch.call(this, gl, size);
+
+	//the currently bound texture
+	this.baseTexture = null;
+};
+
+// reparent constructor
+PIXI.WebGLSpriteBatch2.prototype = Object.create( PIXI.AbstractBatch.prototype );
+PIXI.WebGLSpriteBatch2.prototype.constructor = PIXI.WebGLSpriteBatch2;
+
+
+PIXI.WebGLSpriteBatch2.prototype.getVertexSize = function()
+{
+	return PIXI.Sprite.VERTEX_SIZE; //5 floats per vertex
+};
+
+
+PIXI.WebGLSpriteBatch2.prototype.begin = function(projection) 
+{
+	PIXI.AbstractBatch.prototype.begin.call(this, projection);
+
+	var gl = this.gl;
+
+	//activate texture0
+	gl.activeTexture(gl.TEXTURE0);
+
+	//bind the default shader
+	PIXI.activateDefaultShader();
+	
+	//upload projection uniform
+	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
+
+};
+
+PIXI.WebGLSpriteBatch2.prototype.end = function() 
+{
+	PIXI.AbstractBatch.prototype.end.call(this);
+
+	//clear the current texture
+	this.baseTexture = null;
+};
+
+/** 
+ * Called before rendering to bind new textures and setup
+ * vertex attribute pointers. 
+ */
+PIXI.WebGLSpriteBatch2.prototype._bind = function() 
+{
+	var gl = this.gl;
+    //bind the current texture
+    gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
+
+	//setup vertex attribs
+	var shaderProgram = PIXI.shaderProgram;
+	var numComponents = this.getVertexSize();
+	var stride = numComponents * 4; //in bytes..
+
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
+	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
+	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
+};
+
+
+PIXI.WebGLSpriteBatch2.prototype.flush = function() 
+{
+	if (this.baseTexture === null)
+		return;
+
+	PIXI.AbstractBatch.prototype.flush.call(this);
+};
+
+
+
+/**
+ * Adds a single display object (with no children) to this batch.
+ */
+PIXI.WebGLSpriteBatch2.prototype.drawSprite = function(sprite) 
+{
+	if (!this.drawing)
+		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
+	var texture = sprite.texture;
+
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
+
+	if (this.baseTexture != texture.baseTexture) {
+		//new texture.. flush previous data
+		this.flush();
+		this.baseTexture = texture.baseTexture;
+	} else if (this.idx == this.vertices.length) {
+		this.flush(); //we've reached our max, flush before pushing more data
+	}
+
+	var verts =	sprite._updateVertices();
+	// TODO: we can remove this duplicate code with drawVertices
+	
+///TODO: loop ?
+	var off = 0;
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+}
+
+/**
+ * Adds a single set of vertices to this sprite batch (20 floats).
+ */
+PIXI.WebGLSpriteBatch2.prototype.drawVertices = function(texture, verts, off) 
+{
+	if (!this.drawing)
+		throw "Illegal State: trying to draw a batch before begin()";
+	
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
+	
+	if (this.baseTexture != texture.baseTexture) {
+		//new texture.. flush previous data
+		this.flush();
+		this.baseTexture = texture.baseTexture;
+	} else if (this.idx == this.vertices.length) {
+		this.flush(); //we've reached our max, flush before pushing more data
+	}
+
+	off = off || 0;
+
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//color
+	this.vertices[this.idx++] = verts[off++];
+};
+
+// See here:
+// http://webglsamples.googlecode.com/hg/sprites/readme.html
+
+// batches up to four textures together into a single draw call
+PIXI.WebGLAdvancedBatch = function(gl, size)
+{
+	PIXI.AbstractBatch.call(this, gl, size);
+
+
+	this.textureStack = [];
+
+	//ensure the stack is the correct size to start with
+	var i = PIXI.WebGLAdvancedBatch.MAX_TEXTURES;
+	while (--i) {
+		this.textureStack.push( null );
+	}
+
+	this.texturePointer = 0;
+
+	this.shaderProgram = this._createShader();
+};
+
+// reparent constructor
+PIXI.WebGLAdvancedBatch.prototype = Object.create( PIXI.AbstractBatch.prototype );
+PIXI.WebGLAdvancedBatch.prototype.constructor = PIXI.WebGLAdvancedBatch;
+
+//Maximum 4 textures bound at a time
+PIXI.WebGLAdvancedBatch.MAX_TEXTURES = 4;
+PIXI.WebGLAdvancedBatch.VERTEX_SIZE = (2 + 2 + 1 + 1); 
+
+PIXI.WebGLAdvancedBatch.FRAG_SRC = [
+	"precision mediump float;",
+	"varying vec2 vTextureCoord;",
+	"varying float vColor;",
+	"varying float vTexUnit;",
+
+	"uniform sampler2D uSampler0;",
+	"uniform sampler2D uSampler1;",
+	"uniform sampler2D uSampler2;",
+	"uniform sampler2D uSampler3;",
+
+	"void main(void) {",
+		"if (vTexUnit < 1.0)",
+			"gl_FragColor = texture2D(uSampler0, vTextureCoord) * vColor;",
+		"else if (vTexUnit < 2.0)",
+			"gl_FragColor = texture2D(uSampler1, vTextureCoord) * vColor;",
+		"else if (vTexUnit < 3.0)",
+			"gl_FragColor = texture2D(uSampler2, vTextureCoord) * vColor;",
+		"else", // vTexUnit < 4
+			"gl_FragColor = texture2D(uSampler0, vTextureCoord) * vColor;",
+	"}"
+];
+
+PIXI.WebGLAdvancedBatch.VERT_SRC = [
+	"attribute vec2 aVertexPosition;",
+	"attribute vec2 aTextureCoord;",
+	"attribute float aTexUnit;",
+	"attribute float aColor;",
+
+	"uniform vec2 projectionVector;",
+
+	"varying vec2 vTextureCoord;",
+	"varying float vTexUnit;",
+	"varying float vColor;",
+
+	"void main(void) {",
+		"vTextureCoord = aTextureCoord;",
+		"vColor = aColor;",
+		"vTexUnit = aTexUnit;",
+		"gl_Position = vec4( aVertexPosition.x / projectionVector.x -1.0, aVertexPosition.y / -projectionVector.y + 1.0 , 0.0, 1.0);",		
+	"}"
+];
+
+PIXI.WebGLAdvancedBatch.prototype._createShader = function()
+{
+	var attribLocations = {
+		"aVertexPosition": 0,
+		"aTextureCoord": 1,
+		"aTexUnit": 2,
+		"aColor": 3
+	}; // <-- only necessary if we want to introduce shader switching
+
+	var shader = PIXI.compileProgram(
+						PIXI.WebGLAdvancedBatch.VERT_SRC, 
+		  				PIXI.WebGLAdvancedBatch.FRAG_SRC,
+		  				attribLocations);
+
+	var gl = this.gl;	
+
+    gl.useProgram(shader);
+
+    //attributes
+    shader.vertexPositionAttribute = gl.getAttribLocation(shader, "aVertexPosition");
+    shader.textureCoordAttribute   = gl.getAttribLocation(shader, "aTextureCoord");
+	shader.texUnitAttribute 	   = gl.getAttribLocation(shader, "aTexUnit");
+	shader.colorAttribute 		   = gl.getAttribLocation(shader, "aColor");
+
+
+	//uniforms
+	shader.projectionVector = gl.getUniformLocation(shader, "projectionVector");
+    
+	//samplers
+    var samplers = [];
+    for (var i=0; i<PIXI.WebGLAdvancedBatch.MAX_TEXTURES; i++) {
+    	var loc = gl.getUniformLocation(shader, "uSampler" + i);
+    	samplers.push( loc );
+
+    	//upload index
+    	gl.uniform1i(loc, i);
+    }
+    shader.samplers = samplers;
+    
+
+	return shader;
+};
+
+
+PIXI.WebGLAdvancedBatch.prototype.getVertexSize = function()
+{
+	return PIXI.WebGLAdvancedBatch.VERTEX_SIZE; //5 floats per vertex
+};
+
+PIXI.WebGLAdvancedBatch.prototype.begin = function(projection) 
+{
+	//super method
+	PIXI.AbstractBatch.prototype.begin.call(this, projection);
+
+	var gl = this.gl;
+	var shaderProgram = this.shaderProgram;
+
+	//bind our shader
+	gl.useProgram(shaderProgram);
+	
+	//upload projection uniform
+	gl.uniform2f(shaderProgram.projectionVector, projection.x, projection.y);
+
+	gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+	gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+	gl.enableVertexAttribArray(shaderProgram.texUnitAttribute);
+	gl.enableVertexAttribArray(shaderProgram.colorAttribute);
+};
+
+PIXI.WebGLAdvancedBatch.prototype.end = function() 
+{
+	PIXI.AbstractBatch.prototype.end.call(this);
+
+	//clear the current texture
+	this._resetStack();
+
+	var gl = this.gl;
+	var shaderProgram = this.shaderProgram;
+	gl.disableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+	gl.disableVertexAttribArray(shaderProgram.textureCoordAttribute);
+	gl.disableVertexAttribArray(shaderProgram.texUnitAttribute);
+	gl.disableVertexAttribArray(shaderProgram.colorAttribute);
+};
+
+/** 
+ * Called before rendering to bind new textures and setup
+ * vertex attribute pointers. 
+ */
+PIXI.WebGLAdvancedBatch.prototype._bind = function() 
+{
+	var gl = this.gl;
+
+	//setup vertex attribs
+	var shaderProgram = this.shaderProgram;
+	var numComponents = this.getVertexSize();
+	var stride = numComponents * 4; //in bytes..	
+	// console.log("BLAH)", numComponents);
+	
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0 * 4);
+	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
+	gl.vertexAttribPointer(shaderProgram.texUnitAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
+	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 5 * 4);
+};
+
+
+PIXI.WebGLAdvancedBatch.prototype.flush = function() 
+{
+	//ignore render if we have no textures
+	if (this.textureStack.length === 0 || this.textureStack[0] === null)
+		return;
+
+
+	PIXI.AbstractBatch.prototype.flush.call(this);
+};
+
+//TODO: depending on PIXI's target, just use Array.indexOf
+PIXI.WebGLAdvancedBatch.__lastIndexOf = function(array, element) 
+{
+	var i = Math.min(array.length, this.texturePointer + 1);
+	while (i--) {
+		if (array[i] === element)
+			return i;
+	}
+	return -1;
+};
+
+
+PIXI.WebGLAdvancedBatch.prototype._bindTextures = function() //only call if stack is non empty
+{
+	var stack = this.textureStack;
+	var i = Math.min(stack.length, this.texturePointer); //stack size
+	var gl = this.gl;
+	// console.log("TEX", stack.length, i);
+	while (i--) { //bind in reverse so that the last active will be TEXTURE_0
+		// console.log("BINDING TEX", i, stack[i]);
+		gl.activeTexture(gl.TEXTURE0 + i)
+		gl.bindTexture(gl.TEXTURE_2D, stack[i]);
+	}
+};
+
+//clears the texture stack and replaces the first element with the given optional param, or null
+PIXI.WebGLAdvancedBatch.prototype._resetStack = function(firstElement)
+{
+	var stack = this.textureStack;
+	var i = stack.length;
+	while (--i) { //skip first index
+		stack[i] = null;
+	}
+	this.texturePointer = 0;
+};
+	 
+
+/**
+ * Adds a single display object (with no children) to this batch.
+ */
+PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite) 
+{
+	if (!this.drawing)
+		throw "Illegal State: trying to draw batch before begin()";
+	var texture = sprite.texture;
+
+	//don't draw anything if GL tex doesn't exist..
+	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
+		return;
+
+	var glTex = texture.baseTexture._glTexture;
+
+	/////// first we check if we should flush because of vert max.
+	if (this.idx == this.vertices.length) {
+		this.flush(); //we've reached our max, flush before pushing more data
+	}
+
+	/////// now we check if we should flush because of texture switch
+	//if we have textures left, push this sprite onto the stack.
+	//if we don't have textures left, check to see if the new texture
+	//is one in textureStack (and use it). If not, flush the batch
+	//pointer increases so old textures get popped off
+
+	//is the texture already in the set?
+	var cachedIndex = PIXI.WebGLAdvancedBatch.__lastIndexOf(this.textureStack, glTex);
+
+	//it's a NEW texture
+	if (cachedIndex == -1) {
+		//we are still under 4 textures.. so just add this texture to the stack
+		if (this.texturePointer < PIXI.WebGLAdvancedBatch.MAX_TEXTURES) {
+			//the index of the texture for this sprite
+			cachedIndex = this.texturePointer;
+
+			//put into stack
+			this.textureStack[this.texturePointer] = glTex;
+			
+			//increment for subsequent calls
+			this.texturePointer++;
+
+
+		} 
+		//the stack is full.. we need to flush the batch and reset the counter
+		else {
+			//flush old batch
+			this.flush();
+
+			//clear the stack
+			this._resetStack();
+			
+			//update current index after clearing stack
+			this.texturePointer = 1;
+
+			//the index of the texture for this sprite
+			cachedIndex = 0;
+		}
+
+		//textures have changed, bind the new ones
+		//TODO: optimize out redundant GL calls
+		this._bindTextures();
+	}
+	
+	//vertex format:
+	//	{ x, y, u, v, tex, rgba }
+	//texUnit is a vec4 coefficient that specifies the target, where:
+	// tex < 1 --> tex 0
+	// tex < 2 --> tex 1
+	// tex < 3 --> tex 2
+	// tex < 4 --> tex 3
+
+	var verts =	sprite._updateVertices();
+	var off = 0;
+
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+
+	//tex unit
+	this.vertices[this.idx++] = cachedIndex;
+
+	//color
+	this.vertices[this.idx++] = verts[off++];
+
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+
+	//tex unit
+	this.vertices[this.idx++] = cachedIndex;
+
+	//color
+	this.vertices[this.idx++] = verts[off++];
+
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+
+	//tex unit
+	this.vertices[this.idx++] = cachedIndex;
+
+	//color
+	this.vertices[this.idx++] = verts[off++];
+
+	//xy
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+	//uv
+	this.vertices[this.idx++] = verts[off++];
+	this.vertices[this.idx++] = verts[off++];
+
+	//tex unit
+	this.vertices[this.idx++] = cachedIndex;
+	
+	//color
+	this.vertices[this.idx++] = verts[off++];
 };
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
@@ -7192,7 +7970,7 @@ PIXI.CanvasRenderer = function(width, height, view, transparent)
 
     this.view.width = this.width;
 	this.view.height = this.height;
-	this.count = 0;
+	// this.count = 0;
 }
 
 // constructor
@@ -7378,7 +8156,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				context.restore();
 			}
 		}
-		count++
+		// count++
 		displayObject = displayObject._iNext;
 
 
@@ -7401,7 +8179,7 @@ PIXI.CanvasRenderer.prototype.renderStripFlat = function(strip)
 	var uvs = strip.uvs;
 
 	var length = verticies.length/2;
-	this.count++;
+	// this.count++;
 
 	context.beginPath();
 	for (var i=1; i < length-2; i++)
@@ -7444,15 +8222,27 @@ PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
 	var tilePosition = sprite.tilePosition;
 	var tileScale = sprite.tileScale;
 
+	context.save();
+    
     // offset
     context.scale(tileScale.x,tileScale.y);
     context.translate(tilePosition.x, tilePosition.y);
+    
+	context.translate(
+		sprite.flipX ? (sprite.width / tileScale.x) : 0,
+		sprite.flipY ? (sprite.height / tileScale.y) : 0
+	);
+	context.scale( 
+		sprite.flipX ? -1 : 1,
+		sprite.flipY ? -1 : 1
+	);
 
 	context.fillStyle = sprite.__tilePattern;
-	context.fillRect(-tilePosition.x,-tilePosition.y,sprite.width / tileScale.x, sprite.height / tileScale.y);
+	context.fillRect(-tilePosition.x,-tilePosition.y, 
+					sprite.width / tileScale.x, sprite.height / tileScale.y);
 
-	context.scale(1/tileScale.x, 1/tileScale.y);
-    context.translate(-tilePosition.x, -tilePosition.y);
+	context.restore();
+
 
     context.closePath();
 }
@@ -7473,7 +8263,7 @@ PIXI.CanvasRenderer.prototype.renderStrip = function(strip)
 	var uvs = strip.uvs;
 
 	var length = verticies.length/2;
-	this.count++;
+	// this.count++;
 	for (var i=1; i < length-2; i++)
 	{
 
@@ -7948,15 +8738,15 @@ PIXI.Graphics.prototype.drawCircle = function( x, y, radius)
 }
 
 /**
- * Draws an elipse.
+ * Draws an ellipse.
  *
- * @method drawElipse
+ * @method drawEllipse
  * @param x {Number}
  * @param y {Number}
  * @param width {Number}
  * @param height {Number}
  */
-PIXI.Graphics.prototype.drawElipse = function( x, y, width, height)
+PIXI.Graphics.prototype.drawEllipse = function( x, y, width, height)
 {
 	if(this.currentPath.points.length == 0)this.graphicsData.pop();
 
@@ -7967,6 +8757,12 @@ PIXI.Graphics.prototype.drawElipse = function( x, y, width, height)
 	this.graphicsData.push(this.currentPath);
 	this.dirty = true;
 }
+
+/**
+ * @method drawElipse
+ * @deprecated  use drawEllipse
+ */
+PIXI.Graphics.prototype.drawElipse = PIXI.Graphics.prototype.drawEllipse;
 
 /**
  * Clears the graphics that were drawn to this Graphics object, and resets fill and line style settings.
@@ -8319,6 +9115,9 @@ PIXI.TilingSprite = function(texture, width, height)
 
 	this.renderable = true;
 
+	this.flipX = false;
+	this.flipY = false;
+
 	this.blendMode = PIXI.blendModes.NORMAL
 }
 
@@ -8408,17 +9207,23 @@ PIXI.TilingSprite.prototype._updateVertices = function() {
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
  	
-	out[2] = 0 - offsetX;
-	out[3] = 0 - offsetY;
+	var u1 = this.flipX ? ((1 * scaleX) - offsetX) : 0 - offsetX;
+	var u2 = this.flipX ? 0 - offsetX : ((1 * scaleX) - offsetX);
+
+	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
+	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
+
+	out[2] = u1;
+	out[3] = v1;
 	
-	out[7] = (1 * scaleX)  -offsetX;
-	out[8] = 0 - offsetY;
+	out[7] = u2;
+	out[8] = v1;
 	
-	out[12] = (1 *scaleX) - offsetX;
-	out[13] = (1 *scaleY) - offsetY;
+	out[12] = u2;
+	out[13] = v2;
 	
-	out[17] = 0 - offsetX;
-	out[18] = (1 *scaleY) - offsetY;
+	out[17] = u1;
+	out[18] = v2;
 
 	return out;
 };

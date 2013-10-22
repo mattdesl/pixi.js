@@ -1,5 +1,5 @@
 module.exports = function(grunt) {
-    // grunt.loadNpmTasks('grunt-contrib-concat');
+    grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-connect');
@@ -38,7 +38,10 @@ module.exports = function(grunt) {
             '<%= dirs.src %>/renderers/webgl/WebGLExtras.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderer.js',
             '<%= dirs.src %>/renderers/webgl/WebGLBatch.js',
+            '<%= dirs.src %>/renderers/webgl/utils/AbstractBatch.js',
             '<%= dirs.src %>/renderers/webgl/utils/WebGLSpriteBatch.js',
+            '<%= dirs.src %>/renderers/webgl/utils/WebGLSpriteBatch2.js',
+            '<%= dirs.src %>/renderers/webgl/utils/WebGLAdvancedBatch.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderGroup.js',
             '<%= dirs.src %>/renderers/canvas/CanvasRenderer.js',
             '<%= dirs.src %>/renderers/canvas/CanvasGraphics.js',
@@ -88,15 +91,15 @@ module.exports = function(grunt) {
             build: '<%= dirs.build %>/pixi.dev.js',
             buildMin: '<%= dirs.build %>/pixi.js'
         },
-        // concat: {
-        //     options: {
-        //         banner: banner
-        //     },
-        //     dist: {
-        //         src: srcFiles,
-        //         dest: '<%= files.build %>'
-        //     }
-        // },
+        concat: {
+            options: {
+                banner: banner
+            },
+            dist: {
+                src: srcFiles,
+                dest: '<%= files.build %>'
+            }
+        },
         concat_sourcemap: {
             dev: {
                 files: {
@@ -177,16 +180,17 @@ module.exports = function(grunt) {
         watch: {
             dev: {
                 files: ['src/**/*.js', 'examples/**/*.html'],
-                tasks: ['concat_sourcemap'],
+                tasks: ['build'],
                 options: {
                     livereload: true
                 }
             }
         }
      });
- 
-    grunt.registerTask('default', ['concat_sourcemap', 'uglify']);
-    grunt.registerTask('build', ['concat_sourcemap', 'uglify']);
+    grunt.registerTask('build-concat', ['concat_sourcemap']);
+     
+    grunt.registerTask('default', ['build-concat', 'uglify']);
+    grunt.registerTask('build', ['build-concat', 'uglify']);
     grunt.registerTask('test', ['build', 'connect:qunit', 'qunit']);
     grunt.registerTask('docs', ['yuidoc']);
 
