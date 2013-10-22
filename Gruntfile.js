@@ -41,7 +41,6 @@ module.exports = function(grunt) {
             '<%= dirs.src %>/renderers/webgl/WebGLBatch.js',
             '<%= dirs.src %>/renderers/webgl/utils/AbstractBatch.js',
             '<%= dirs.src %>/renderers/webgl/utils/WebGLSpriteBatch.js',
-            '<%= dirs.src %>/renderers/webgl/utils/WebGLSpriteBatch2.js',
             '<%= dirs.src %>/renderers/webgl/utils/WebGLAdvancedBatch.js',
             '<%= dirs.src %>/renderers/webgl/WebGLRenderGroup.js',
             '<%= dirs.src %>/renderers/canvas/CanvasRenderer.js',

@@ -5208,11 +5208,9 @@ PIXI.gl;
  * @param view {Canvas} the canvas to use as a view, optional
  * @param transparent=false {Boolean} the transparency of the render view, default false
  * @param antialias=false {Boolean} sets antialias (only applicable in chrome at the moment)
- * @param targetFrameRate {Number}=60 target framerate for MovieClip animations and other time based animations
- * @param minFrameRate {Number}=12 minimum framerate update for MovieClips and other time based animations
- * 
+ *
  */
-PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targetFrameRate, minFrameRate )
+PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 {
 	// do a catch.. only 1 webGL renderer..
 
@@ -5224,16 +5222,6 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	this.view = view || document.createElement( 'canvas' );
     this.view.width = this.width;
 	this.view.height = this.height;
-
-
-    /**
-     * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
-     * perform framerate independent programmatic animations.
-     *
-     * @property time
-     * @type {Time}
-     */
-    this.time = new PIXI.Time( targetFrameRate, minFrameRate );
 
 	// deal with losing context..
     var scope = this;
@@ -5281,7 +5269,10 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
-    	this.spriteBatch = new PIXI.WebGLAdvancedBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_MULTITEXTURE)
+    		this.spriteBatch = new PIXI.WebGLAdvancedBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	else 
+    		this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
  
     //can simulate context loss in Chrome like so:
@@ -5316,6 +5307,7 @@ PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
  * 
  * @attribute SINGLE_BUFFER
  * @readOnly
+ * @static
  * @default  0
  * @type {Number}
  */
@@ -5330,21 +5322,39 @@ PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
  * 
  * @attribute BUFFER_GROUPS
  * @readOnly
+ * @static
  * @default  1
  * @type {Number}
  */
 PIXI.WebGLRenderer.BATCH_GROUPS = 1;
 
 /**
+ * A constant defining the BATCH_MULTITEXTURE mode, which 
+ * tries to batch up to 4 textures in the same render call using the
+ * following technique:
+ *
+ * http://webglsamples.googlecode.com/hg/sprites/readme.html
+ * 
+ * @attribute BUFFER_GROUPS
+ * @readOnly
+ * @static
+ * @default  2
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_MULTITEXTURE = 2;
+
+
+/**
  * Sets the batch mode that will be used the next time we initialize a WebGLRenderer,
- * either PIXI.WebGLRenderer.BATCH_SIMPLE or PIXI.WebGLRenderer.BATCH_GROUPS.
+ * either PIXI.WebGLRenderer.BATCH_SIMPLE, PIXI.WebGLRenderer.BATCH_GROUPS,
+ * or PIXI.WebGLRenderer.BATCH_MULTITEXTURE.
  *
  * @attribute batchMode
- * @static
- * @param  {batchMode} batchMode
- * @default PIXI.WebGLRenderer.BATCH_GROUPS
+ * @static 
+ * @default PIXI.WebGLRenderer.BATCH_GROUPS 
+ * @type {Number}
  */
-PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
 PIXI.WebGLRenderer.throttleTextureUploads = false;
 
@@ -5406,7 +5416,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	if(this.contextLost)
 		return;
 
-    stage.time = this.time;
 
 	// if rendering a new stage clear the batchs..
 	if(this.__stage !== stage)
@@ -5419,7 +5428,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			this.stageRenderGroup.setRenderable(stage);
 	}
 
-        
 	// TODO not needed now...
 	// update children if need be
 	// best to remove first!
@@ -5475,8 +5483,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 		PIXI.Texture.frameUpdates = [];
 	}
-	
-	this.time.update();
 }
 
 /**
@@ -6484,344 +6490,7 @@ PIXI.AbstractBatch.prototype.destroy = function()
  * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/WebGLSpriteBatch.java
  */
 
-
-/**
- * A low-level utility for batching 2D textures. Modular enough that it can be used
- * for more manual rendering of scene sprites (i.e. without any scene graph).
- *
- * A sprite is made up of 4 (indexed) vertices, each with the following layout:
- *
- *     { x, y, u, v, alpha }
- * 
- * @class WebGLSpriteBatch
- * @constructor
- *
- *
- *
- * @param size {Number} the default max size of the batch, in sprites
- * @default 0
- */
 PIXI.WebGLSpriteBatch = function(gl, size)
-{
-	this.initialize(gl);
-	this.size = size || 500;
-	this.currentShader = null;
-
-	// 65535 is max index, so 65535 / 6 = 10922.
-	if (this.size > 10922)  //(you'd have to be insane to try and batch this much with WebGL)
-		throw "Can't have more than 10922 sprites per batch: " + this.size;
-
-	//the total number of floats in our batch
-	var numVerts = this.size * 4 * this._getVertexSize();
-	//the total number of indices in our batch
-	var numIndices = this.size * 6;
-
-
-	this.blendMode = PIXI.blendModes.NORMAL;
-
-	this.vertices = new Float32Array(numVerts);
-	this.indices = new Uint16Array(numIndices); 
-	
-	for (var i=0, j=0; i < numIndices; i += 6, j += 4) 
-	{
-		this.indices[i + 0] = j + 0; 
-		this.indices[i + 1] = j + 1;
-		this.indices[i + 2] = j + 2;
-		this.indices[i + 3] = j + 0;
-		this.indices[i + 4] = j + 2;
-		this.indices[i + 5] = j + 3;
-	}
-
-	//upload the index data
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
-
-	//null means "use the default"
-	this.currentShader = null;
-
-
-	this.idx = 0;
-	this.drawing = false;
-	this.baseTexture = null; //NOTE: this is a BaseTexture
-}; 
-
-PIXI.WebGLSpriteBatch.totalRenderCalls = 0;
-
-
-// constructor
-PIXI.WebGLSpriteBatch.constructor = PIXI.WebGLSpriteBatch;
-
-// for subclasses to implement (i.e. extra attribs)
-PIXI.WebGLSpriteBatch.prototype._getVertexSize = function()
-{
-	return PIXI.Sprite.VERTEX_SIZE;
-}
-
-//TODO: implement...
-PIXI.WebGLSpriteBatch.prototype.setBlendMode = function(blendMode)
-{
-	//... TODO: flush and swap blend modes...
-	//Implementation should be renderer agnostic or at least 
-	//done in a way to remove duplicate code between this and WebGLRenderGroup / WebGLRenderBatch.
-	this.blendMode = blendMode;
-};
-
-PIXI.WebGLSpriteBatch.prototype.begin = function(projection) 
-{
-	if (this.drawing)
-		throw "WebGLSpriteBatch.end() must be called before begin";
-
-	var gl = this.gl;
-	projection = projection;
-
-	//disable depth mask
-	gl.depthMask(false);
-
-	//activate texture0
-	gl.activeTexture(gl.TEXTURE0);
-
-	//bind the shader
-	PIXI.activateDefaultShader();
-	
-	//upload projection uniform
-	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
-
-	//premultiplied alpha
-	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
-
-	//bind the element buffer
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
-
-	this.drawing = true;
-};
-
-PIXI.WebGLSpriteBatch.prototype.end = function() 
-{
-	if (!this.drawing)
-		throw "WebGLSpriteBatch.begin() must be called before end";
-	if (this.idx > 0)
-		this.flush();
-	this.baseTexture = null;
-	this.drawing = false;
-
-	var gl = this.gl;
-	gl.depthMask(true); //reset to default WebGL state
-};
-
-PIXI.WebGLSpriteBatch.prototype.flush = function() 
-{
-	if (this.idx===0)
-		return;
-	if (this.baseTexture === null) 
-		return;
-
-    var gl = this.gl;
-    
-    PIXI.WebGLSpriteBatch.totalRenderCalls++;
-    
-    //bind the current texture
-    gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
-
-	//bind our vertex buffer
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-
-	//upload the new data.. we are not changing the size as that may allocate new memory
-	gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
-
-	//setup our vertex attributes
-	var shaderProgram = PIXI.shaderProgram;
-	var numComponents = PIXI.Sprite.VERTEX_SIZE;
-	var stride = numComponents * 4;
-	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
-	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
-	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
-
-	//number of sprites in batch
-	var spriteCount = (this.idx / (numComponents * 4));
- 	
- 	//draw the sprites
-    gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
-    
-    this.idx = 0;
-};
-
-
-
-/**
- * Adds a single display object (with no children) to this batch.
- */
-PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite) 
-{
-	if (!this.drawing)
-		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
-	var texture = sprite.texture;
-
-	//don't draw anything if GL tex doesn't exist..
-	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
-		return;
-
-	if (this.baseTexture != texture.baseTexture) {
-		//new texture.. flush previous data
-		this.flush();
-		this.baseTexture = texture.baseTexture;
-	} else if (this.idx == this.vertices.length) {
-		this.flush(); //we've reached our max, flush before pushing more data
-	}
-
-	var verts =	sprite._updateVertices();
-	// TODO: we can remove this duplicate code with drawVertices
-	
-	///TODO: loop ?
-	var off = 0;
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-};
-
-/**
- * Adds a single set of vertices to this sprite batch (20 floats).
- */
-PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off) 
-{
-	if (!this.drawing)
-		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
-	
-	//don't draw anything if GL tex doesn't exist..
-	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
-		return;
-	
-	if (this.baseTexture != texture.baseTexture) {
-		//new texture.. flush previous data
-		this.flush();
-		this.baseTexture = texture.baseTexture;
-	} else if (this.idx == this.vertices.length) {
-		this.flush(); //we've reached our max, flush before pushing more data
-	}
-
-	off = off || 0;
-
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-	//xy
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//uv
-	this.vertices[this.idx++] = verts[off++];
-	this.vertices[this.idx++] = verts[off++];
-	//color
-	this.vertices[this.idx++] = verts[off++];
-};
-
-
-// PIXI.WebGLSpriteBatch.prototype._drawVertices = function(
-// 		baseTexture,
-// 		x1, y1, u1, v1, c1,
-// 		x2, y2, u2, v2, c2,
-// 		x3, y3, u3, v3, c3,
-// 		x4, y4, u4, v4, c4)  
-// {
-// 	if (!this.drawing)
-// 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
-// 	if (this.baseTexture != baseTexture) {
-// 		//new texture.. flush previous data
-// 		this.flush();
-// 		this.baseTexture = texture.baseTexture;
-// 	} else if (this.idx == this.vertices.length) {
-// 		this.flush(); //we've reached our max, flush before pushing more data
-// 	}
-
-// };
-
-/**
- * Initializes the buffers, replacing the old ones, i.e. on context restoration.
- * Does not delete old buffers -- use destroy() for that.
- * 
- * @method initialize
- */
-PIXI.WebGLSpriteBatch.prototype.initialize = function(gl)
-{
-	this.gl = gl;
-	this.vertexBuffer = gl.createBuffer();
-	this.indexBuffer = gl.createBuffer();
-};
-
-/**
- * Destroys the batch, deleting its buffers. Trying to use this
- * batch after destroying it can lead to unpredictable behaviour.
- *
- * @method destroy
- */
-PIXI.WebGLSpriteBatch.prototype.destroy = function()
-{
-	this.vertices = [];
-	this.indices = [];
-	this.baseTexture = null;
-	this.size = this.maxVertices = 0;
-	if (this.vertexBuffer !== null)
-		this.gl.deleteBuffer(this.vertexBuffer);
-	if (this.indexBuffer !== null)
-		this.gl.deleteBuffer(this.indexBuffer);
-};
-/**
- * @author Matt DesLauriers <mattdesl> https://github.com/mattdesl/
- * 
- * Heavily inspired by LibGDX's WebGLSpriteBatch:
- * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/WebGLSpriteBatch.java
- */
-
-PIXI.WebGLSpriteBatch2 = function(gl, size)
 {
 	//constructor
 	PIXI.AbstractBatch.call(this, gl, size);
@@ -6831,17 +6500,17 @@ PIXI.WebGLSpriteBatch2 = function(gl, size)
 };
 
 // reparent constructor
-PIXI.WebGLSpriteBatch2.prototype = Object.create( PIXI.AbstractBatch.prototype );
-PIXI.WebGLSpriteBatch2.prototype.constructor = PIXI.WebGLSpriteBatch2;
+PIXI.WebGLSpriteBatch.prototype = Object.create( PIXI.AbstractBatch.prototype );
+PIXI.WebGLSpriteBatch.prototype.constructor = PIXI.WebGLSpriteBatch;
 
 
-PIXI.WebGLSpriteBatch2.prototype.getVertexSize = function()
+PIXI.WebGLSpriteBatch.prototype.getVertexSize = function()
 {
 	return PIXI.Sprite.VERTEX_SIZE; //5 floats per vertex
 };
 
 
-PIXI.WebGLSpriteBatch2.prototype.begin = function(projection) 
+PIXI.WebGLSpriteBatch.prototype.begin = function(projection) 
 {
 	PIXI.AbstractBatch.prototype.begin.call(this, projection);
 
@@ -6858,7 +6527,7 @@ PIXI.WebGLSpriteBatch2.prototype.begin = function(projection)
 
 };
 
-PIXI.WebGLSpriteBatch2.prototype.end = function() 
+PIXI.WebGLSpriteBatch.prototype.end = function() 
 {
 	PIXI.AbstractBatch.prototype.end.call(this);
 
@@ -6870,7 +6539,7 @@ PIXI.WebGLSpriteBatch2.prototype.end = function()
  * Called before rendering to bind new textures and setup
  * vertex attribute pointers. 
  */
-PIXI.WebGLSpriteBatch2.prototype._bind = function() 
+PIXI.WebGLSpriteBatch.prototype._bind = function() 
 {
 	var gl = this.gl;
     //bind the current texture
@@ -6887,7 +6556,7 @@ PIXI.WebGLSpriteBatch2.prototype._bind = function()
 };
 
 
-PIXI.WebGLSpriteBatch2.prototype.flush = function() 
+PIXI.WebGLSpriteBatch.prototype.flush = function() 
 {
 	if (this.baseTexture === null)
 		return;
@@ -6900,7 +6569,7 @@ PIXI.WebGLSpriteBatch2.prototype.flush = function()
 /**
  * Adds a single display object (with no children) to this batch.
  */
-PIXI.WebGLSpriteBatch2.prototype.drawSprite = function(sprite) 
+PIXI.WebGLSpriteBatch.prototype.drawSprite = function(sprite) 
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a WebGLSpriteBatch before begin()";
@@ -6960,7 +6629,7 @@ PIXI.WebGLSpriteBatch2.prototype.drawSprite = function(sprite)
 /**
  * Adds a single set of vertices to this sprite batch (20 floats).
  */
-PIXI.WebGLSpriteBatch2.prototype.drawVertices = function(texture, verts, off) 
+PIXI.WebGLSpriteBatch.prototype.drawVertices = function(texture, verts, off) 
 {
 	if (!this.drawing)
 		throw "Illegal State: trying to draw a batch before begin()";
@@ -7029,7 +6698,6 @@ PIXI.WebGLAdvancedBatch = function(gl, size)
 	while (i--) {
 		this.textureStack.push( null );
 	}
-	console.log("USING ADVC");
 	this.texturePointer = 0;
 
 	this.shaderProgram = this._createShader();
@@ -7182,7 +6850,6 @@ PIXI.WebGLAdvancedBatch.prototype._bind = function()
 	var shaderProgram = this.shaderProgram;
 	var numComponents = this.getVertexSize();
 	var stride = numComponents * 4; //in bytes..	
-	// console.log("BLAH)", numComponents);
 	
 	this._bindTextures();
 	

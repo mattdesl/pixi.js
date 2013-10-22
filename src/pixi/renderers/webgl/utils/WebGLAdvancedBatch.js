@@ -15,7 +15,6 @@ PIXI.WebGLAdvancedBatch = function(gl, size)
 	while (i--) {
 		this.textureStack.push( null );
 	}
-	console.log("USING ADVC");
 	this.texturePointer = 0;
 
 	this.shaderProgram = this._createShader();
@@ -168,7 +167,6 @@ PIXI.WebGLAdvancedBatch.prototype._bind = function()
 	var shaderProgram = this.shaderProgram;
 	var numComponents = this.getVertexSize();
 	var stride = numComponents * 4; //in bytes..	
-	// console.log("BLAH)", numComponents);
 	
 	this._bindTextures();
 	

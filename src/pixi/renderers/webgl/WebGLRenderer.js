@@ -21,11 +21,9 @@ PIXI.gl;
  * @param view {Canvas} the canvas to use as a view, optional
  * @param transparent=false {Boolean} the transparency of the render view, default false
  * @param antialias=false {Boolean} sets antialias (only applicable in chrome at the moment)
- * @param targetFrameRate {Number}=60 target framerate for MovieClip animations and other time based animations
- * @param minFrameRate {Number}=12 minimum framerate update for MovieClips and other time based animations
- * 
+ *
  */
-PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targetFrameRate, minFrameRate )
+PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 {
 	// do a catch.. only 1 webGL renderer..
 
@@ -37,16 +35,6 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	this.view = view || document.createElement( 'canvas' );
     this.view.width = this.width;
 	this.view.height = this.height;
-
-
-    /**
-     * time is an instance if Time. It will be used to cap the framerate of MovieClip's it can also be used to
-     * perform framerate independent programmatic animations.
-     *
-     * @property time
-     * @type {Time}
-     */
-    this.time = new PIXI.Time( targetFrameRate, minFrameRate );
 
 	// deal with losing context..
     var scope = this;
@@ -94,7 +82,10 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
-    	this.spriteBatch = new PIXI.WebGLAdvancedBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_MULTITEXTURE)
+    		this.spriteBatch = new PIXI.WebGLAdvancedBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	else 
+    		this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
  
     //can simulate context loss in Chrome like so:
@@ -129,6 +120,7 @@ PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
  * 
  * @attribute SINGLE_BUFFER
  * @readOnly
+ * @static
  * @default  0
  * @type {Number}
  */
@@ -143,21 +135,39 @@ PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
  * 
  * @attribute BUFFER_GROUPS
  * @readOnly
+ * @static
  * @default  1
  * @type {Number}
  */
 PIXI.WebGLRenderer.BATCH_GROUPS = 1;
 
 /**
+ * A constant defining the BATCH_MULTITEXTURE mode, which 
+ * tries to batch up to 4 textures in the same render call using the
+ * following technique:
+ *
+ * http://webglsamples.googlecode.com/hg/sprites/readme.html
+ * 
+ * @attribute BUFFER_GROUPS
+ * @readOnly
+ * @static
+ * @default  2
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_MULTITEXTURE = 2;
+
+
+/**
  * Sets the batch mode that will be used the next time we initialize a WebGLRenderer,
- * either PIXI.WebGLRenderer.BATCH_SIMPLE or PIXI.WebGLRenderer.BATCH_GROUPS.
+ * either PIXI.WebGLRenderer.BATCH_SIMPLE, PIXI.WebGLRenderer.BATCH_GROUPS,
+ * or PIXI.WebGLRenderer.BATCH_MULTITEXTURE.
  *
  * @attribute batchMode
- * @static
- * @param  {batchMode} batchMode
- * @default PIXI.WebGLRenderer.BATCH_GROUPS
+ * @static 
+ * @default PIXI.WebGLRenderer.BATCH_GROUPS 
+ * @type {Number}
  */
-PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_SIMPLE;
+PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
 PIXI.WebGLRenderer.throttleTextureUploads = false;
 
@@ -219,7 +229,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	if(this.contextLost)
 		return;
 
-    stage.time = this.time;
 
 	// if rendering a new stage clear the batchs..
 	if(this.__stage !== stage)
@@ -232,7 +241,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 			this.stageRenderGroup.setRenderable(stage);
 	}
 
-        
 	// TODO not needed now...
 	// update children if need be
 	// best to remove first!
@@ -288,8 +296,6 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 		PIXI.Texture.frameUpdates = [];
 	}
-	
-	this.time.update();
 }
 
 /**
