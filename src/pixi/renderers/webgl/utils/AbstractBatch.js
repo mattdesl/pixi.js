@@ -19,7 +19,6 @@ PIXI.AbstractBatch = function(gl, size)
 	//the total number of indices in our batch
 	var numIndices = this.size * 6;
 
-
 	//TODO: use properties here
 	//current blend mode.. changing it flushes the batch
 	this.blendMode = PIXI.blendModes.NORMAL;
