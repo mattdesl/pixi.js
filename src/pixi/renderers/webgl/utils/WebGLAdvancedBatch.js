@@ -12,10 +12,9 @@ PIXI.WebGLAdvancedBatch = function(gl, size)
 
 	//ensure the stack is the correct size to start with
 	var i = PIXI.WebGLAdvancedBatch.MAX_TEXTURES;
-	while (--i) {
+	while (i--) {
 		this.textureStack.push( null );
 	}
-
 	this.texturePointer = 0;
 
 	this.shaderProgram = this._createShader();
@@ -48,7 +47,7 @@ PIXI.WebGLAdvancedBatch.FRAG_SRC = [
 		"else if (vTexUnit < 3.0)",
 			"gl_FragColor = texture2D(uSampler2, vTextureCoord) * vColor;",
 		"else", // vTexUnit < 4
-			"gl_FragColor = texture2D(uSampler0, vTextureCoord) * vColor;",
+			"gl_FragColor = texture2D(uSampler3, vTextureCoord) * vColor;",
 	"}"
 ];
 
@@ -168,7 +167,8 @@ PIXI.WebGLAdvancedBatch.prototype._bind = function()
 	var shaderProgram = this.shaderProgram;
 	var numComponents = this.getVertexSize();
 	var stride = numComponents * 4; //in bytes..	
-	// console.log("BLAH)", numComponents);
+	
+	this._bindTextures();
 	
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0 * 4);
 	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
@@ -190,7 +190,7 @@ PIXI.WebGLAdvancedBatch.prototype.flush = function()
 //TODO: depending on PIXI's target, just use Array.indexOf
 PIXI.WebGLAdvancedBatch.__lastIndexOf = function(array, element) 
 {
-	var i = Math.min(array.length, this.texturePointer + 1);
+	var i = array.length;
 	while (i--) {
 		if (array[i] === element)
 			return i;
@@ -204,9 +204,7 @@ PIXI.WebGLAdvancedBatch.prototype._bindTextures = function() //only call if stac
 	var stack = this.textureStack;
 	var i = Math.min(stack.length, this.texturePointer); //stack size
 	var gl = this.gl;
-	// console.log("TEX", stack.length, i);
 	while (i--) { //bind in reverse so that the last active will be TEXTURE_0
-		// console.log("BINDING TEX", i, stack[i]);
 		gl.activeTexture(gl.TEXTURE0 + i)
 		gl.bindTexture(gl.TEXTURE_2D, stack[i]);
 	}
@@ -217,21 +215,28 @@ PIXI.WebGLAdvancedBatch.prototype._resetStack = function(firstElement)
 {
 	var stack = this.textureStack;
 	var i = stack.length;
-	while (--i) { //skip first index
+	while (i--) {
 		stack[i] = null;
 	}
 	this.texturePointer = 0;
 };
-	 
+
 
 /**
  * Adds a single display object (with no children) to this batch.
  */
 PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite) 
 {
+	var verts =	sprite._updateVertices();
+	var off = 0;
+	this.drawVertices(sprite.texture, verts, off);
+};
+	 
+
+PIXI.WebGLAdvancedBatch.prototype.drawVertices = function(texture, verts, off)
+{
 	if (!this.drawing)
 		throw "Illegal State: trying to draw batch before begin()";
-	var texture = sprite.texture;
 
 	//don't draw anything if GL tex doesn't exist..
 	if (!texture || !texture.baseTexture || !texture.baseTexture._glTexture)
@@ -252,7 +257,8 @@ PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite)
 
 	//is the texture already in the set?
 	var cachedIndex = PIXI.WebGLAdvancedBatch.__lastIndexOf(this.textureStack, glTex);
-
+	// console.log(cachedIndex)
+	
 	//it's a NEW texture
 	if (cachedIndex == -1) {
 		//we are still under 4 textures.. so just add this texture to the stack
@@ -265,8 +271,6 @@ PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite)
 			
 			//increment for subsequent calls
 			this.texturePointer++;
-
-
 		} 
 		//the stack is full.. we need to flush the batch and reset the counter
 		else {
@@ -283,9 +287,8 @@ PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite)
 			cachedIndex = 0;
 		}
 
-		//textures have changed, bind the new ones
-		//TODO: optimize out redundant GL calls
-		this._bindTextures();
+		//textures have changed, bind the new one
+		
 	}
 	
 	//vertex format:
@@ -296,8 +299,6 @@ PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite)
 	// tex < 3 --> tex 2
 	// tex < 4 --> tex 3
 
-	var verts =	sprite._updateVertices();
-	var off = 0;
 
 	//xy
 	this.vertices[this.idx++] = verts[off++];
@@ -351,3 +352,4 @@ PIXI.WebGLAdvancedBatch.prototype.drawSprite = function(sprite)
 	//color
 	this.vertices[this.idx++] = verts[off++];
 };
+

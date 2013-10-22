@@ -82,7 +82,10 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
-    	this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_MULTITEXTURE)
+    		this.spriteBatch = new PIXI.WebGLAdvancedBatch(this.gl, PIXI.WebGLRenderer.batchSize);
+    	else 
+    		this.spriteBatch = new PIXI.WebGLSpriteBatch(this.gl, PIXI.WebGLRenderer.batchSize);
     }
  
     //can simulate context loss in Chrome like so:
@@ -117,6 +120,7 @@ PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
  * 
  * @attribute SINGLE_BUFFER
  * @readOnly
+ * @static
  * @default  0
  * @type {Number}
  */
@@ -131,19 +135,37 @@ PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
  * 
  * @attribute BUFFER_GROUPS
  * @readOnly
+ * @static
  * @default  1
  * @type {Number}
  */
 PIXI.WebGLRenderer.BATCH_GROUPS = 1;
 
 /**
+ * A constant defining the BATCH_MULTITEXTURE mode, which 
+ * tries to batch up to 4 textures in the same render call using the
+ * following technique:
+ *
+ * http://webglsamples.googlecode.com/hg/sprites/readme.html
+ * 
+ * @attribute BUFFER_GROUPS
+ * @readOnly
+ * @static
+ * @default  2
+ * @type {Number}
+ */
+PIXI.WebGLRenderer.BATCH_MULTITEXTURE = 2;
+
+
+/**
  * Sets the batch mode that will be used the next time we initialize a WebGLRenderer,
- * either PIXI.WebGLRenderer.BATCH_SIMPLE or PIXI.WebGLRenderer.BATCH_GROUPS.
+ * either PIXI.WebGLRenderer.BATCH_SIMPLE, PIXI.WebGLRenderer.BATCH_GROUPS,
+ * or PIXI.WebGLRenderer.BATCH_MULTITEXTURE.
  *
  * @attribute batchMode
- * @static
- * @param  {batchMode} batchMode
- * @default PIXI.WebGLRenderer.BATCH_GROUPS
+ * @static 
+ * @default PIXI.WebGLRenderer.BATCH_GROUPS 
+ * @type {Number}
  */
 PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
@@ -154,7 +176,7 @@ PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection)
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
-		this.spriteBatch.begin();
+		this.spriteBatch.begin(projection);
 		stage._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
