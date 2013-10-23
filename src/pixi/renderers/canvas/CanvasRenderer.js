@@ -206,8 +206,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 		}
 		else if(displayObject instanceof PIXI.TilingSprite)
 		{
-			context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5])
-			this.renderTilingSprite(displayObject);
+			this.renderTilingSprite(displayObject, transform);
 		}
 		else if(displayObject instanceof PIXI.CustomRenderable)
 		{
@@ -249,7 +248,6 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 	}
 	while(displayObject != testObject)
-	console.log(count);	
 }
 
 /**
@@ -296,7 +294,7 @@ PIXI.CanvasRenderer.prototype.renderStripFlat = function(strip)
  * @param sprite {TilingSprite} The tilingsprite to render
  * @private
  */
-PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
+PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite, transform)
 {
 	var context = this.context;
 
@@ -304,34 +302,40 @@ PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
 
  	if(!sprite.__tilePattern) sprite.__tilePattern = context.createPattern(sprite.texture.baseTexture.source, "repeat");
 
+ 	context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
+ 	context.save();
+
 	context.beginPath();
 
-	var tilePosition = sprite.tilePosition;
+	var tilePositionX = sprite.tilePosition.x;
+	var tilePositionY = sprite.tilePosition.y;
+
 	var tileScale = sprite.tileScale;
 
-	context.save();
+
     
     // offset
     context.scale(tileScale.x,tileScale.y);
-    context.translate(tilePosition.x, tilePosition.y);
+    context.translate(-tilePositionX, -tilePositionY);
     
 	context.translate(
 		sprite.flipX ? (sprite.width / tileScale.x) : 0,
 		sprite.flipY ? (sprite.height / tileScale.y) : 0
 	);
+	
 	context.scale( 
 		sprite.flipX ? -1 : 1,
 		sprite.flipY ? -1 : 1
 	);
-
+ 
 	context.fillStyle = sprite.__tilePattern;
-	context.fillRect(-tilePosition.x,-tilePosition.y, 
-					sprite.width / tileScale.x, sprite.height / tileScale.y);
-
-	context.restore();
-
+	context.fillRect(sprite.flipX ? -tilePositionX : tilePositionX, 
+					 sprite.flipY ? -tilePositionY : tilePositionY, 
+					sprite.width / tileScale.x, 
+					sprite.height / tileScale.y);
 
     context.closePath();
+    context.restore();
 }
 
 /**

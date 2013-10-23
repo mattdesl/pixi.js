@@ -145,11 +145,12 @@ PIXI.TilingSprite.prototype._isCulled = function() {
 PIXI.TilingSprite.prototype._updateVertices = function() {
 	var out = PIXI.Sprite.prototype._updateVertices.call(this, this.width, this.height);
 
-	var tilePosition = this.tilePosition;
+	var tilePositionX = this.flipX ? this.tilePosition.x : -this.tilePosition.x;
+	var tilePositionY = this.flipY ? this.tilePosition.y : -this.tilePosition.y;
 	var tileScale = this.tileScale;
 	
-	var offsetX =  tilePosition.x/this.texture.baseTexture.width;
-	var offsetY =  tilePosition.y/this.texture.baseTexture.height;
+	var offsetX =  tilePositionX/this.texture.baseTexture.width;
+	var offsetY =  tilePositionY/this.texture.baseTexture.height;
 	
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
