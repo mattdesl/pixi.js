@@ -5118,11 +5118,14 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 	var gl = this.gl;
 	var shaderProgram = PIXI.shaderProgram;
 	
-	var tilePosition = sprite.tilePosition;
+	// var tilePositionX = sprite.tilePosition.x;
+	// var tilePositionY = sprite.tilePosition.y;
+	var tilePositionX = sprite.flipX ? -sprite.tilePosition.x : sprite.tilePosition.x;
+	var tilePositionY = sprite.flipY ? -sprite.tilePosition.y : sprite.tilePosition.y;
 	var tileScale = sprite.tileScale;
 	
-	var offsetX =  tilePosition.x/sprite.texture.baseTexture.width;
-	var offsetY =  tilePosition.y/sprite.texture.baseTexture.height;
+	var offsetX =  tilePositionX/sprite.texture.baseTexture.width;
+	var offsetY =  tilePositionY/sprite.texture.baseTexture.height;
 	
 	var scaleX =  (sprite.width / sprite.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (sprite.height / sprite.texture.baseTexture.height) / tileScale.y;
@@ -5132,9 +5135,8 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 
 	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
 	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
-
+	//TODO: tiling sprite is broken for default PIXI renderer.. use BATCH_SIMPLE instead
 	//TODO: change vertices for size...
-
 	sprite.uvs[0] = u1;
 	sprite.uvs[1] = v1;
 	
@@ -7979,8 +7981,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 		}
 		else if(displayObject instanceof PIXI.TilingSprite)
 		{
-			context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5])
-			this.renderTilingSprite(displayObject);
+			this.renderTilingSprite(displayObject, transform);
 		}
 		else if(displayObject instanceof PIXI.CustomRenderable)
 		{
@@ -8022,8 +8023,6 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 	}
 	while(displayObject != testObject)
-
-
 }
 
 /**
@@ -8070,7 +8069,7 @@ PIXI.CanvasRenderer.prototype.renderStripFlat = function(strip)
  * @param sprite {TilingSprite} The tilingsprite to render
  * @private
  */
-PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
+PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite, transform)
 {
 	var context = this.context;
 
@@ -8078,43 +8077,40 @@ PIXI.CanvasRenderer.prototype.renderTilingSprite = function(sprite)
 
  	if(!sprite.__tilePattern) sprite.__tilePattern = context.createPattern(sprite.texture.baseTexture.source, "repeat");
 
+ 	context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
+ 	context.save();
+
 	context.beginPath();
 
-	var tilePosition = sprite.tilePosition;
+	var tilePositionX = sprite.tilePosition.x;
+	var tilePositionY = sprite.tilePosition.y;
+
 	var tileScale = sprite.tileScale;
 
-	context.save();
+
     
     // offset
     context.scale(tileScale.x,tileScale.y);
-    context.translate(tilePosition.x, tilePosition.y);
+    context.translate(-tilePositionX, -tilePositionY);
     
 	context.translate(
 		sprite.flipX ? (sprite.width / tileScale.x) : 0,
 		sprite.flipY ? (sprite.height / tileScale.y) : 0
 	);
+	
 	context.scale( 
 		sprite.flipX ? -1 : 1,
 		sprite.flipY ? -1 : 1
 	);
-
-	context.translate(
-		sprite.flipX ? (sprite.width / tileScale.x) : 0,
-		sprite.flipY ? (sprite.height / tileScale.y) : 0
-	);
-	context.scale( 
-		sprite.flipX ? -1 : 1,
-		sprite.flipY ? -1 : 1
-	);
-
+ 
 	context.fillStyle = sprite.__tilePattern;
-	context.fillRect(-tilePosition.x,-tilePosition.y, 
-					sprite.width / tileScale.x, sprite.height / tileScale.y);
-
-	context.restore();
-
+	context.fillRect(sprite.flipX ? -tilePositionX : tilePositionX, 
+					 sprite.flipY ? -tilePositionY : tilePositionY, 
+					sprite.width / tileScale.x, 
+					sprite.height / tileScale.y);
 
     context.closePath();
+    context.restore();
 }
 
 /**
@@ -9068,11 +9064,12 @@ PIXI.TilingSprite.prototype._isCulled = function() {
 PIXI.TilingSprite.prototype._updateVertices = function() {
 	var out = PIXI.Sprite.prototype._updateVertices.call(this, this.width, this.height);
 
-	var tilePosition = this.tilePosition;
+	var tilePositionX = this.flipX ? this.tilePosition.x : -this.tilePosition.x;
+	var tilePositionY = this.flipY ? this.tilePosition.y : -this.tilePosition.y;
 	var tileScale = this.tileScale;
 	
-	var offsetX =  tilePosition.x/this.texture.baseTexture.width;
-	var offsetY =  tilePosition.y/this.texture.baseTexture.height;
+	var offsetX =  tilePositionX/this.texture.baseTexture.width;
+	var offsetY =  tilePositionY/this.texture.baseTexture.height;
 	
 	var scaleX =  (this.width / this.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (this.height / this.texture.baseTexture.height) / tileScale.y;
