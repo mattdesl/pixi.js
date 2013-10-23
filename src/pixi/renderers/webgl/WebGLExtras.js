@@ -285,11 +285,14 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 	var gl = this.gl;
 	var shaderProgram = PIXI.shaderProgram;
 	
-	var tilePosition = sprite.tilePosition;
+	// var tilePositionX = sprite.tilePosition.x;
+	// var tilePositionY = sprite.tilePosition.y;
+	var tilePositionX = sprite.flipX ? -sprite.tilePosition.x : sprite.tilePosition.x;
+	var tilePositionY = sprite.flipY ? -sprite.tilePosition.y : sprite.tilePosition.y;
 	var tileScale = sprite.tileScale;
 	
-	var offsetX =  tilePosition.x/sprite.texture.baseTexture.width;
-	var offsetY =  tilePosition.y/sprite.texture.baseTexture.height;
+	var offsetX =  tilePositionX/sprite.texture.baseTexture.width;
+	var offsetY =  tilePositionY/sprite.texture.baseTexture.height;
 	
 	var scaleX =  (sprite.width / sprite.texture.baseTexture.width)  / tileScale.x;
 	var scaleY =  (sprite.height / sprite.texture.baseTexture.height) / tileScale.y;
@@ -299,9 +302,8 @@ PIXI.WebGLExtras.prototype.renderTilingSprite = function(sprite, projectionMatri
 
 	var v1 = this.flipY ? ((1 * scaleY) - offsetY) : 0 - offsetY;
 	var v2 = this.flipY ? 0 - offsetY : ((1 * scaleY) - offsetY);
-
+	//TODO: tiling sprite is broken for default PIXI renderer.. use BATCH_SIMPLE instead
 	//TODO: change vertices for size...
-
 	sprite.uvs[0] = u1;
 	sprite.uvs[1] = v1;
 	
