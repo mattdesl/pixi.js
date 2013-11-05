@@ -7946,11 +7946,11 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 			var showing = displayObject.isShowing();
 			if (showing
 					&& displayObject.stage 
-					&& !displayObject.stage.cullingRect 
-					&& !displayObject.cullingEnabled) {
+					&& displayObject.stage.cullingRect 
+					&& displayObject.cullingEnabled) {
 				displayObject._updateVertices();
 				showing = !displayObject._isCulled();
-			}
+			} 
 
 			if (!showing) {
 				displayObject = displayObject.last._iNext;
