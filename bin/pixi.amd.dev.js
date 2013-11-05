@@ -7921,6 +7921,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 	var testObject = displayObject.last._iNext;
 	displayObject = displayObject.first;
 
+	var count = 0;
 	do
 	{
 		transform = displayObject.worldTransform;
@@ -7946,11 +7947,11 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 			var showing = displayObject.isShowing();
 			if (showing
 					&& displayObject.stage 
-					&& !displayObject.stage.cullingRect 
-					&& !displayObject.cullingEnabled) {
+					&& displayObject.stage.cullingRect 
+					&& displayObject.cullingEnabled) {
 				displayObject._updateVertices();
 				showing = !displayObject._isCulled();
-			}
+			} 
 
 			if (!showing) {
 				displayObject = displayObject.last._iNext;
@@ -7962,7 +7963,10 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				context.globalAlpha = displayObject.worldAlpha;
 
 				context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
-
+				count++;
+				// if (count > 20) {
+				// 	break;
+				// }
 				context.drawImage(displayObject.texture.baseTexture.source,
 								   frame.x,
 								   frame.y,
@@ -8023,6 +8027,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 	}
 	while(displayObject != testObject)
+		// console.log(count);
 }
 
 /**
@@ -10719,6 +10724,10 @@ PIXI.BaseTexture.prototype.destroy = function()
 {
 	if(this.source instanceof Image)
 	{
+		// TODO: we should also remove this from the cache...
+		// however this seems to introduce issues in our tests with CanvasRenderer
+		// if (this.source.src && this.source.src in PIXI.BaseTextureCache)
+		// 	PIXI.BaseTextureCache[this.source.src] = null;
 		this.source.src = null;
 	}
 	this.source = null;

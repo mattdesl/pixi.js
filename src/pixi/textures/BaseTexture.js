@@ -105,6 +105,10 @@ PIXI.BaseTexture.prototype.destroy = function()
 {
 	if(this.source instanceof Image)
 	{
+		// TODO: we should also remove this from the cache...
+		// however this seems to introduce issues in our tests with CanvasRenderer
+		// if (this.source.src && this.source.src in PIXI.BaseTextureCache)
+		// 	PIXI.BaseTextureCache[this.source.src] = null;
 		this.source.src = null;
 	}
 	this.source = null;
