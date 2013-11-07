@@ -28,6 +28,8 @@ PIXI.AbstractBatch = function(gl, size)
 	//index data
 	this.indices = new Uint16Array(numIndices); 
 	
+	this.lastIndexCount = 0;
+
 	for (var i=0, j=0; i < numIndices; i += 6, j += 4) 
 	{
 		this.indices[i + 0] = j + 0; 
@@ -41,6 +43,9 @@ PIXI.AbstractBatch = function(gl, size)
 	//upload the index data
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
 
 	this.idx = 0;
 	this.drawing = false;
@@ -84,7 +89,9 @@ PIXI.AbstractBatch.prototype.begin = function(projection)
 
 	//bind the element buffer
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	//bind our vertex buffer
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 };
 
 PIXI.AbstractBatch.prototype.end = function() 
@@ -118,8 +125,17 @@ PIXI.AbstractBatch.prototype.flush = function()
 	//bind our vertex buffer
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-	//upload the new data.. we are not changing the size as that may allocate new memory
-	gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
+	// console.log(this.idx);
+
+	if (this.idx >= this.lastIndexCount) {
+		var view = this.vertices.subarray(0, this.idx);
+		gl.bufferSubData(gl.ARRAY_BUFFER, 0, view);
+		// gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
+	} else {
+		//we need to clear and upload new data.
+		//If this is happening a lot it might be a good idea to lower the batch size
+		gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
+	}
 
 	//setup our vertex attributes & binds textures
 	//TODO: move this to begin to remove redundant GL calls?

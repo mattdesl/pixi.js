@@ -8,6 +8,11 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 // only one at the moment :/
 PIXI.gl;
 
+//ugly shit.. get rid of this in a big overhaul
+//only exists because RenderTexture needs a render() method,
+//but doesn't have any reference to the renderer (which holds SpriteBatch!!)
+PIXI.glRenderer = null;
+
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
  * should be used for browsers support webGL. This Render works by automatically managing webGLBatchs.
@@ -78,6 +83,8 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias)
     this.contextLost = false;
 
 	this.extras = new PIXI.WebGLExtras(gl);
+
+	PIXI.glRenderer = this;
 
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
@@ -171,13 +178,13 @@ PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
 PIXI.WebGLRenderer.throttleTextureUploads = false;
 
-PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
+PIXI.WebGLRenderer.prototype._renderDisplayObject = function(obj, projection) 
 {
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
 		this.spriteBatch.begin(projection);
-		stage._glDraw(this, projection);
+		obj._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
 };
@@ -272,7 +279,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 	//PIXI.projectionMatrix = this.projectionMatrix;
 		
 	//renders batches with correct mode
-	this._renderStage(stage, PIXI.projection);
+	this._renderDisplayObject(stage, PIXI.projection);
 	
 	// interaction
 	// run interaction!

@@ -182,6 +182,7 @@ PIXI.RenderTexture.prototype.renderWebGL = function(displayObject, position, cle
 		displayObject.worldTransform[5] -= position.y;
 	}
 
+
 	PIXI.visibleCount++;
 	displayObject.vcount = PIXI.visibleCount;
 
@@ -190,24 +191,28 @@ PIXI.RenderTexture.prototype.renderWebGL = function(displayObject, position, cle
 		children[i].updateTransform();
 	}
 
-	var renderGroup = displayObject.__renderGroup;
+	if (PIXI.glRenderer && PIXI.WebGLRenderer.batchMode === PIXI.WebGLRenderer.BATCH_GROUPS) {
+		var renderGroup = displayObject.__renderGroup;
 
-	if(renderGroup)
-	{
-		if(displayObject == renderGroup.root)
+		if(renderGroup)
 		{
-			renderGroup.render(this.projection);
+			if(displayObject == renderGroup.root)
+			{
+				renderGroup.render(PIXI.glRenderer, this.projection);
+			}
+			else
+			{
+				renderGroup.renderSpecific(PIXI.glRenderer, displayObject, this.projection);
+			}
 		}
 		else
 		{
-			renderGroup.renderSpecific(displayObject, this.projection);
+			if(!this.renderGroup)this.renderGroup = new PIXI.WebGLRenderGroup(gl);
+			this.renderGroup.setRenderable(displayObject);
+			this.renderGroup.render(PIXI.glRenderer, this.projection);
 		}
-	}
-	else
-	{
-		if(!this.renderGroup)this.renderGroup = new PIXI.WebGLRenderGroup(gl);
-		this.renderGroup.setRenderable(displayObject);
-		this.renderGroup.render(this.projection);
+	} else if (PIXI.glRenderer) {
+		PIXI.glRenderer._renderDisplayObject(displayObject, this.projection);
 	}
 
 	displayObject.worldTransform = originalWorldTransform;

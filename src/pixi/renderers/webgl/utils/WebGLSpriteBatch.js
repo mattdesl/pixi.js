@@ -40,6 +40,15 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection)
 	//upload projection uniform
 	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
 
+	
+	//setup vertex attribs
+	var shaderProgram = PIXI.shaderProgram;
+	var numComponents = this.getVertexSize();
+	var stride = numComponents * 4; //in bytes..
+
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
+	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
+	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
 };
 
 PIXI.WebGLSpriteBatch.prototype.end = function() 
@@ -59,15 +68,6 @@ PIXI.WebGLSpriteBatch.prototype._bind = function()
 	var gl = this.gl;
     //bind the current texture
     gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
-
-	//setup vertex attribs
-	var shaderProgram = PIXI.shaderProgram;
-	var numComponents = this.getVertexSize();
-	var stride = numComponents * 4; //in bytes..
-
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
-	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
-	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
 };
 
 
