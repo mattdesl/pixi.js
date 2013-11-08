@@ -52,7 +52,7 @@ PIXI.blendingEnabled = false;
 
 //BATCH_GROUPS will perform worse when sprites are made dirty, e.g.
 //with movie clips or tweening alpha.
-var DIRTY_SPRITES = true;
+var DIRTY_SPRITES = false;
 
 console.log("Texture Mode:", TEXTURE_BENCH);
 if (BATCHER === PIXI.WebGLRenderer.BATCH_GROUPS) {
