@@ -84,8 +84,14 @@ PIXI.AbstractBatch.prototype.begin = function(projection)
 	//disable depth mask
 	gl.depthMask(false);
 
-	//premultiplied alpha
-	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	if (PIXI.blendingEnabled) {
+		gl.enable(gl.BLEND);
+
+		//premultiplied alpha
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	} else {
+		gl.disable(gl.BLEND);
+	}
 
 	//bind the element buffer
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);

@@ -5052,6 +5052,10 @@ PIXI.gl;
 //but doesn't have any reference to the renderer (which holds SpriteBatch!!)
 PIXI.glRenderer = null;
 
+
+//mainly for debugging
+PIXI.blendingEnabled = true;
+
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
  * should be used for browsers support webGL. This Render works by automatically managing webGLBatchs.
@@ -5164,7 +5168,7 @@ PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
  * walks the scene graph and renders as much as we can in the same batch
  * until it's time to flush (state change, texture switch, blend mode, etc).
  * 
- * @attribute SINGLE_BUFFER
+ * @attribute BATCH_SIMPLE
  * @readOnly
  * @static
  * @default  0
@@ -5179,7 +5183,7 @@ PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
  * if you have a complex scene with a lot of nested relations,
  * as it leads to many more batches being created.
  * 
- * @attribute BUFFER_GROUPS
+ * @attribute BATCH_GROUPS
  * @readOnly
  * @static
  * @default  1
@@ -5194,7 +5198,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  *
  * http://webglsamples.googlecode.com/hg/sprites/readme.html
  * 
- * @attribute BUFFER_GROUPS
+ * @attribute BATCH_MULTITEXTURE
  * @readOnly
  * @static
  * @default  2
@@ -5316,7 +5320,16 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 	// HACK TO TEST
 	//PIXI.projectionMatrix = this.projectionMatrix;
-		
+	
+	if (PIXI.blendingEnabled) {
+		gl.enable(gl.BLEND);
+
+		//premultiplied alpha
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	} else {
+		gl.disable(gl.BLEND);
+	}
+
 	//renders batches with correct mode
 	this._renderDisplayObject(stage, PIXI.projection);
 	
@@ -6244,8 +6257,14 @@ PIXI.AbstractBatch.prototype.begin = function(projection)
 	//disable depth mask
 	gl.depthMask(false);
 
-	//premultiplied alpha
-	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	if (PIXI.blendingEnabled) {
+		gl.enable(gl.BLEND);
+
+		//premultiplied alpha
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	} else {
+		gl.disable(gl.BLEND);
+	}
 
 	//bind the element buffer
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
