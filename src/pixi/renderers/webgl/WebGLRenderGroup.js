@@ -59,8 +59,9 @@ PIXI.WebGLRenderGroup.prototype.setRenderable = function(displayObject)
  */
 PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 {
+	projection = projection || PIXI.projection;
 	PIXI.WebGLRenderer.updateTextures();
-
+	
 	var gl = this.gl;
 
 	PIXI.activateDefaultShader(); //could be done elswhere, but this is needed for context restoration

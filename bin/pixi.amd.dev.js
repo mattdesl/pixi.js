@@ -5197,6 +5197,15 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 // only one at the moment :/
 PIXI.gl;
 
+//ugly shit.. get rid of this in a big overhaul
+//only exists because RenderTexture needs a render() method,
+//but doesn't have any reference to the renderer (which holds SpriteBatch!!)
+PIXI.glRenderer = null;
+
+
+//mainly for debugging
+PIXI.blendingEnabled = true;
+
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
  * should be used for browsers support webGL. This Render works by automatically managing webGLBatchs.
@@ -5280,6 +5289,8 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 
 	this.extras = new PIXI.WebGLExtras(gl);
 
+	PIXI.glRenderer = this;
+
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
@@ -5319,7 +5330,7 @@ PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
  * walks the scene graph and renders as much as we can in the same batch
  * until it's time to flush (state change, texture switch, blend mode, etc).
  * 
- * @attribute SINGLE_BUFFER
+ * @attribute BATCH_SIMPLE
  * @readOnly
  * @static
  * @default  0
@@ -5334,7 +5345,7 @@ PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
  * if you have a complex scene with a lot of nested relations,
  * as it leads to many more batches being created.
  * 
- * @attribute BUFFER_GROUPS
+ * @attribute BATCH_GROUPS
  * @readOnly
  * @static
  * @default  1
@@ -5349,7 +5360,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  *
  * http://webglsamples.googlecode.com/hg/sprites/readme.html
  * 
- * @attribute BUFFER_GROUPS
+ * @attribute BATCH_MULTITEXTURE
  * @readOnly
  * @static
  * @default  2
@@ -5372,13 +5383,13 @@ PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
 PIXI.WebGLRenderer.throttleTextureUploads = false;
 
-PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
+PIXI.WebGLRenderer.prototype._renderDisplayObject = function(obj, projection) 
 {
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
 		this.spriteBatch.begin(projection);
-		stage._glDraw(this, projection);
+		obj._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
 };
@@ -5472,9 +5483,18 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 	// HACK TO TEST
 	//PIXI.projectionMatrix = this.projectionMatrix;
-		
+	
+	if (PIXI.blendingEnabled) {
+		gl.enable(gl.BLEND);
+
+		//premultiplied alpha
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	} else {
+		gl.disable(gl.BLEND);
+	}
+
 	//renders batches with correct mode
-	this._renderStage(stage, PIXI.projection);
+	this._renderDisplayObject(stage, PIXI.projection);
 	
 	// interaction
 	// run interaction!
@@ -6346,6 +6366,8 @@ PIXI.AbstractBatch = function(gl, size)
 	//index data
 	this.indices = new Uint16Array(numIndices); 
 	
+	this.lastIndexCount = 0;
+
 	for (var i=0, j=0; i < numIndices; i += 6, j += 4) 
 	{
 		this.indices[i + 0] = j + 0; 
@@ -6359,6 +6381,9 @@ PIXI.AbstractBatch = function(gl, size)
 	//upload the index data
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
 
 	this.idx = 0;
 	this.drawing = false;
@@ -6397,12 +6422,20 @@ PIXI.AbstractBatch.prototype.begin = function(projection)
 	//disable depth mask
 	gl.depthMask(false);
 
-	//premultiplied alpha
-	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	if (PIXI.blendingEnabled) {
+		gl.enable(gl.BLEND);
+
+		//premultiplied alpha
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	} else {
+		gl.disable(gl.BLEND);
+	}
 
 	//bind the element buffer
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+	//bind our vertex buffer
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 };
 
 PIXI.AbstractBatch.prototype.end = function() 
@@ -6434,10 +6467,16 @@ PIXI.AbstractBatch.prototype.flush = function()
     PIXI.AbstractBatch.totalRenderCalls++;
 
 	//bind our vertex buffer
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	// gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-	//upload the new data.. we are not changing the size as that may allocate new memory
-	gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
+	// Only update a region of the buffer. On my computer 
+	// this is faster (especially if you are not filling the entire batch)
+	// but it could do with more testing. In theory it SHOULD be faster
+	// since bufferData allocates memory, whereas this should not.
+	var view = this.vertices.subarray(0, this.idx);
+	gl.bufferSubData(gl.ARRAY_BUFFER, 0, view);
+	 
+	// gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
 
 	//setup our vertex attributes & binds textures
 	//TODO: move this to begin to remove redundant GL calls?
@@ -6541,6 +6580,15 @@ PIXI.WebGLSpriteBatch.prototype.begin = function(projection)
 	//upload projection uniform
 	gl.uniform2f(PIXI.shaderProgram.projectionVector, projection.x, projection.y);
 
+	
+	//setup vertex attribs
+	var shaderProgram = PIXI.shaderProgram;
+	var numComponents = this.getVertexSize();
+	var stride = numComponents * 4; //in bytes..
+
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
+	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
+	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
 };
 
 PIXI.WebGLSpriteBatch.prototype.end = function() 
@@ -6560,15 +6608,6 @@ PIXI.WebGLSpriteBatch.prototype._bind = function()
 	var gl = this.gl;
     //bind the current texture
     gl.bindTexture(gl.TEXTURE_2D, this.baseTexture._glTexture);
-
-	//setup vertex attribs
-	var shaderProgram = PIXI.shaderProgram;
-	var numComponents = this.getVertexSize();
-	var stride = numComponents * 4; //in bytes..
-
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0);
-	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
-	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
 };
 
 
@@ -6832,6 +6871,17 @@ PIXI.WebGLAdvancedBatch.prototype.begin = function(projection)
 	gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
 	gl.enableVertexAttribArray(shaderProgram.texUnitAttribute);
 	gl.enableVertexAttribArray(shaderProgram.colorAttribute);
+
+
+	//setup vertex attribs
+	var numComponents = this.getVertexSize();
+	var stride = numComponents * 4; //in bytes..	
+	
+	
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0 * 4);
+	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
+	gl.vertexAttribPointer(shaderProgram.texUnitAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
+	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 5 * 4);
 };
 
 PIXI.WebGLAdvancedBatch.prototype.end = function() 
@@ -6855,19 +6905,8 @@ PIXI.WebGLAdvancedBatch.prototype.end = function()
  */
 PIXI.WebGLAdvancedBatch.prototype._bind = function() 
 {
-	var gl = this.gl;
-
-	//setup vertex attribs
-	var shaderProgram = this.shaderProgram;
-	var numComponents = this.getVertexSize();
-	var stride = numComponents * 4; //in bytes..	
-	
 	this._bindTextures();
-	
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0 * 4);
-	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
-	gl.vertexAttribPointer(shaderProgram.texUnitAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
-	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 5 * 4);
+
 };
 
 
@@ -7114,8 +7153,9 @@ PIXI.WebGLRenderGroup.prototype.setRenderable = function(displayObject)
  */
 PIXI.WebGLRenderGroup.prototype.render = function(renderer, projection)
 {
+	projection = projection || PIXI.projection;
 	PIXI.WebGLRenderer.updateTextures();
-
+	
 	var gl = this.gl;
 
 	PIXI.activateDefaultShader(); //could be done elswhere, but this is needed for context restoration
@@ -11169,6 +11209,7 @@ PIXI.RenderTexture.prototype.renderWebGL = function(displayObject, position, cle
 		displayObject.worldTransform[5] -= position.y;
 	}
 
+
 	PIXI.visibleCount++;
 	displayObject.vcount = PIXI.visibleCount;
 
@@ -11177,24 +11218,28 @@ PIXI.RenderTexture.prototype.renderWebGL = function(displayObject, position, cle
 		children[i].updateTransform();
 	}
 
-	var renderGroup = displayObject.__renderGroup;
+	if (PIXI.glRenderer && PIXI.WebGLRenderer.batchMode === PIXI.WebGLRenderer.BATCH_GROUPS) {
+		var renderGroup = displayObject.__renderGroup;
 
-	if(renderGroup)
-	{
-		if(displayObject == renderGroup.root)
+		if(renderGroup)
 		{
-			renderGroup.render(this.projection);
+			if(displayObject == renderGroup.root)
+			{
+				renderGroup.render(PIXI.glRenderer, this.projection);
+			}
+			else
+			{
+				renderGroup.renderSpecific(PIXI.glRenderer, displayObject, this.projection);
+			}
 		}
 		else
 		{
-			renderGroup.renderSpecific(displayObject, this.projection);
+			if(!this.renderGroup)this.renderGroup = new PIXI.WebGLRenderGroup(gl);
+			this.renderGroup.setRenderable(displayObject);
+			this.renderGroup.render(PIXI.glRenderer, this.projection);
 		}
-	}
-	else
-	{
-		if(!this.renderGroup)this.renderGroup = new PIXI.WebGLRenderGroup(gl);
-		this.renderGroup.setRenderable(displayObject);
-		this.renderGroup.render(this.projection);
+	} else if (PIXI.glRenderer) {
+		PIXI.glRenderer._renderDisplayObject(displayObject, this.projection);
 	}
 
 	displayObject.worldTransform = originalWorldTransform;
