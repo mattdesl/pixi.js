@@ -133,6 +133,17 @@ PIXI.WebGLAdvancedBatch.prototype.begin = function(projection)
 	gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
 	gl.enableVertexAttribArray(shaderProgram.texUnitAttribute);
 	gl.enableVertexAttribArray(shaderProgram.colorAttribute);
+
+
+	//setup vertex attribs
+	var numComponents = this.getVertexSize();
+	var stride = numComponents * 4; //in bytes..	
+	
+	
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0 * 4);
+	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
+	gl.vertexAttribPointer(shaderProgram.texUnitAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
+	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 5 * 4);
 };
 
 PIXI.WebGLAdvancedBatch.prototype.end = function() 
@@ -156,19 +167,8 @@ PIXI.WebGLAdvancedBatch.prototype.end = function()
  */
 PIXI.WebGLAdvancedBatch.prototype._bind = function() 
 {
-	var gl = this.gl;
-
-	//setup vertex attribs
-	var shaderProgram = this.shaderProgram;
-	var numComponents = this.getVertexSize();
-	var stride = numComponents * 4; //in bytes..	
-	
 	this._bindTextures();
-	
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, stride, 0 * 4);
-	gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, stride, 2 * 4);
-	gl.vertexAttribPointer(shaderProgram.texUnitAttribute, 1, gl.FLOAT, false, stride, 4 * 4);
-	gl.vertexAttribPointer(shaderProgram.colorAttribute, 1, gl.FLOAT, false, stride, 5 * 4);
+
 };
 
 

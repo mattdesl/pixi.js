@@ -8,6 +8,15 @@ PIXI._defaultFrame = new PIXI.Rectangle(0,0,1,1);
 // only one at the moment :/
 PIXI.gl;
 
+//ugly shit.. get rid of this in a big overhaul
+//only exists because RenderTexture needs a render() method,
+//but doesn't have any reference to the renderer (which holds SpriteBatch!!)
+PIXI.glRenderer = null;
+
+
+//mainly for debugging
+PIXI.blendingEnabled = true;
+
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
  * should be used for browsers support webGL. This Render works by automatically managing webGLBatchs.
@@ -91,6 +100,8 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, targe
 
 	this.extras = new PIXI.WebGLExtras(gl);
 
+	PIXI.glRenderer = this;
+
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS)
     	this.stageRenderGroup = new PIXI.WebGLRenderGroup(this.gl, this.extras);
     else {
@@ -130,7 +141,7 @@ PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
  * walks the scene graph and renders as much as we can in the same batch
  * until it's time to flush (state change, texture switch, blend mode, etc).
  * 
- * @attribute SINGLE_BUFFER
+ * @attribute BATCH_SIMPLE
  * @readOnly
  * @static
  * @default  0
@@ -145,7 +156,7 @@ PIXI.WebGLRenderer.BATCH_SIMPLE = 0;
  * if you have a complex scene with a lot of nested relations,
  * as it leads to many more batches being created.
  * 
- * @attribute BUFFER_GROUPS
+ * @attribute BATCH_GROUPS
  * @readOnly
  * @static
  * @default  1
@@ -160,7 +171,7 @@ PIXI.WebGLRenderer.BATCH_GROUPS = 1;
  *
  * http://webglsamples.googlecode.com/hg/sprites/readme.html
  * 
- * @attribute BUFFER_GROUPS
+ * @attribute BATCH_MULTITEXTURE
  * @readOnly
  * @static
  * @default  2
@@ -183,13 +194,13 @@ PIXI.WebGLRenderer.batchMode = PIXI.WebGLRenderer.BATCH_GROUPS;
 PIXI.WebGLRenderer.batchSize = 500;
 PIXI.WebGLRenderer.throttleTextureUploads = false;
 
-PIXI.WebGLRenderer.prototype._renderStage = function(stage, projection) 
+PIXI.WebGLRenderer.prototype._renderDisplayObject = function(obj, projection) 
 {
 	if (PIXI.WebGLRenderer.batchMode == PIXI.WebGLRenderer.BATCH_GROUPS) {
 		this.stageRenderGroup.render(this, PIXI.projection);
 	} else {
 		this.spriteBatch.begin(projection);
-		stage._glDraw(this, projection);
+		obj._glDraw(this, projection);
 		this.spriteBatch.end();
 	}
 };
@@ -283,9 +294,18 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
 	// HACK TO TEST
 	//PIXI.projectionMatrix = this.projectionMatrix;
-		
+	
+	if (PIXI.blendingEnabled) {
+		gl.enable(gl.BLEND);
+
+		//premultiplied alpha
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); 
+	} else {
+		gl.disable(gl.BLEND);
+	}
+
 	//renders batches with correct mode
-	this._renderStage(stage, PIXI.projection);
+	this._renderDisplayObject(stage, PIXI.projection);
 	
 	// interaction
 	// run interaction!
