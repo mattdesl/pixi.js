@@ -129,19 +129,16 @@ PIXI.AbstractBatch.prototype.flush = function()
     PIXI.AbstractBatch.totalRenderCalls++;
 
 	//bind our vertex buffer
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	// gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-	// console.log(this.idx);
-
-	if (this.idx >= this.lastIndexCount) {
-		var view = this.vertices.subarray(0, this.idx);
-		gl.bufferSubData(gl.ARRAY_BUFFER, 0, view);
-		// gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
-	} else {
-		//we need to clear and upload new data.
-		//If this is happening a lot it might be a good idea to lower the batch size
-		gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
-	}
+	// Only update a region of the buffer. On my computer 
+	// this is faster (especially if you are not filling the entire batch)
+	// but it could do with more testing. In theory it SHOULD be faster
+	// since bufferData allocates memory, whereas this should not.
+	var view = this.vertices.subarray(0, this.idx);
+	gl.bufferSubData(gl.ARRAY_BUFFER, 0, view);
+	 
+	// gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
 
 	//setup our vertex attributes & binds textures
 	//TODO: move this to begin to remove redundant GL calls?

@@ -18,7 +18,7 @@ var minX = 0;
 var maxY = height;
 var minY = 0;
 
-var startBunnyCount = 50;
+var startBunnyCount = 400;
 var isAdding = false;
 var count = 0;
 var container;
@@ -37,18 +37,18 @@ canvas.height = this.height;
 //BATCH_GROUP => default PIXI renderer
 //BATCH_SIMPLE => single buffer, simple batcher
 //BATCH_MULTITEXTURE => advanced 4-texture batcher, choosing sampler in shader
-var BATCHER = PIXI.WebGLRenderer.BATCH_SIMPLE;
+var BATCHER = PIXI.WebGLRenderer.BATCH_GROUPS;
 
 //Ordering sprites by their texture leads to better performance.
 //'best', 'worst', 'random', or a number for the max
-var TEXTURE_BENCH = 'best'; 
+var TEXTURE_BENCH = 'worst'; 
 
 //Only for BATCH_SIMPLE or BATCH_MULTITEXTURE
 //Play around with this a bit.. default is 500
-PIXI.WebGLRenderer.batchSize = 500; 
+PIXI.WebGLRenderer.batchSize = 160; 
 
 //You can disable blending by setting this to false. 
-PIXI.blendingEnabled = true;
+PIXI.blendingEnabled = false;
 
 //BATCH_GROUPS will perform worse when sprites are made dirty, e.g.
 //with movie clips or tweening alpha.
