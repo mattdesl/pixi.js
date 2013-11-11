@@ -4408,6 +4408,7 @@ PIXI.WebGLGraphics.renderGraphics = function(renderer, graphics, projection)
 	// set the index buffer!
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, graphics._webGL.indexBuffer);
 
+	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP,  graphics._webGL.indices.length, gl.UNSIGNED_SHORT, 0 );
 
 	// return to default shader...
@@ -5115,6 +5116,7 @@ PIXI.WebGLExtras.prototype.renderStrip = function(strip, projection)
 	}
 	//console.log(gl.TRIANGLE_STRIP);
 	
+	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP, strip.indices.length, gl.UNSIGNED_SHORT, 0);
     
   	gl.useProgram(PIXI.shaderProgram);
@@ -5220,6 +5222,7 @@ PIXI.glRenderer = null;
 
 //mainly for debugging
 PIXI.blendingEnabled = true;
+PIXI.totalRenderCalls = 0;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
@@ -5477,6 +5480,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		var group = stage.__childrenRemoved[i].__renderGroup
 		if(group)group.removeDisplayObject(stage.__childrenRemoved[i]);
 	}*/
+
+	PIXI.totalRenderCalls = 0;
 
 	// update any textures
 	PIXI.WebGLRenderer.updateTextures();
@@ -6348,6 +6353,7 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
 	var len = end - start;
 
     // DRAW THAT this!
+    PIXI.totalRenderCalls++;
     gl.drawElements(gl.TRIANGLES, len * 6, gl.UNSIGNED_SHORT, start * 2 * 6 );
 }
 
@@ -6404,16 +6410,8 @@ PIXI.AbstractBatch = function(gl, size)
 	this.drawing = false;
 };
 
-
-
-PIXI.AbstractBatch.totalRenderCalls = 0;
-
-
 // constructor
 PIXI.AbstractBatch.constructor = PIXI.AbstractBatch;
-
-
-
 
 // for subclasses to implement (i.e. extra attribs)
 PIXI.AbstractBatch.prototype.getVertexSize = function()
@@ -6479,7 +6477,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 
     var gl = this.gl;
     
-    PIXI.AbstractBatch.totalRenderCalls++;
+    PIXI.totalRenderCalls++;
 
 	//bind our vertex buffer
 	// gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);

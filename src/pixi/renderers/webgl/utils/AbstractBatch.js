@@ -51,16 +51,8 @@ PIXI.AbstractBatch = function(gl, size)
 	this.drawing = false;
 };
 
-
-
-PIXI.AbstractBatch.totalRenderCalls = 0;
-
-
 // constructor
 PIXI.AbstractBatch.constructor = PIXI.AbstractBatch;
-
-
-
 
 // for subclasses to implement (i.e. extra attribs)
 PIXI.AbstractBatch.prototype.getVertexSize = function()
@@ -126,7 +118,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 
     var gl = this.gl;
     
-    PIXI.AbstractBatch.totalRenderCalls++;
+    PIXI.totalRenderCalls++;
 
 	//bind our vertex buffer
 	// gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);

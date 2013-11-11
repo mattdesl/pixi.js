@@ -16,6 +16,7 @@ PIXI.glRenderer = null;
 
 //mainly for debugging
 PIXI.blendingEnabled = true;
+PIXI.totalRenderCalls = 0;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
@@ -273,6 +274,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		var group = stage.__childrenRemoved[i].__renderGroup
 		if(group)group.removeDisplayObject(stage.__childrenRemoved[i]);
 	}*/
+
+	PIXI.totalRenderCalls = 0;
 
 	// update any textures
 	PIXI.WebGLRenderer.updateTextures();

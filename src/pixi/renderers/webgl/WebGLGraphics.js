@@ -77,6 +77,7 @@ PIXI.WebGLGraphics.renderGraphics = function(renderer, graphics, projection)
 	// set the index buffer!
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, graphics._webGL.indexBuffer);
 
+	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP,  graphics._webGL.indices.length, gl.UNSIGNED_SHORT, 0 );
 
 	// return to default shader...
