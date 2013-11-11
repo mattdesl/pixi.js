@@ -1634,7 +1634,6 @@ PIXI.blendModes = {};
 PIXI.blendModes.NORMAL = 0;
 PIXI.blendModes.SCREEN = 1;
 
-
 /**
  * The SPrite object is the base for all textured objects that are rendered to the screen
  *
@@ -1699,10 +1698,10 @@ PIXI.Sprite = function(texture)
 	 * with a dirty flag. 
 	 * 
 	 * @property _vertices
-	 * @type {Float32Array}
+	 * @type {Float32Array|Array}
 	 * @private
 	 */
-	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+	this._vertices = new PIXI.Matrix(PIXI.Sprite.VERTEX_SIZE * 4);
 
 	/**
 	 * If true, we will attempt to cull this sprite and its children if it's
@@ -2759,6 +2758,7 @@ PIXI.InteractionManager = function(stage)
 	this.onTouchEnd = this.onTouchEnd.bind(this);
 	this.onTouchMove = this.onTouchMove.bind(this);
 
+	this.lastCursor = "default";
 
 	this.last = 0;
 }
@@ -2922,7 +2922,8 @@ PIXI.InteractionManager.prototype.update = function()
 	// loop through interactive objects!
 	var length = this.interactiveItems.length;
 
-	this.interactionDOMElement.style.cursor = "default";
+	var newCursor = "default";
+	//this.interactionDOMElement.style.cursor = "default";
 
 	for (var i = 0; i < length; i++)
 	{
@@ -2945,8 +2946,10 @@ PIXI.InteractionManager.prototype.update = function()
 			// loks like there was a hit!
 			if(item.__hit)
 			{
-				if(item.buttonMode) this.interactionDOMElement.style.cursor = "pointer";
-
+				if(item.buttonMode) {
+					//this.interactionDOMElement.style.cursor = "pointer";
+					newCursor = "pointer";
+				}
 				if(!item.__isOver)
 				{
 
@@ -2967,6 +2970,13 @@ PIXI.InteractionManager.prototype.update = function()
 
 		// --->
 	}
+
+	if (newCursor !== this.lastCursor) {
+		this.interactionDOMElement.style.cursor = newCursor;
+		this.lastCursor = newCursor;
+	}
+
+
 }
 
 /**
@@ -7809,7 +7819,7 @@ PIXI.WebGLRenderGroup.prototype.handleContextRestored = function(gl)
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
 
-
+PIXI.totalRenderCalls = 0;
 /**
  * the CanvasRenderer draws the stage and all its content onto a 2d canvas. This renderer should be used for browsers that do not support webGL.
  * Dont forget to add the view to your DOM or you will not see anything :)
@@ -7906,6 +7916,7 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 	// update the background color
 	if(this.view.style.backgroundColor!=stage.backgroundColorString && !this.transparent)this.view.style.backgroundColor = stage.backgroundColorString;
 
+	PIXI.totalRenderCalls = 0;
 	this.context.setTransform(1,0,0,1,0,0);
 	this.context.clearRect(0, 0, this.width, this.height)
     this.renderDisplayObject(stage, stage);
@@ -7966,7 +7977,6 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 	var testObject = displayObject.last._iNext;
 	displayObject = displayObject.first;
 
-	var count = 0;
 	do
 	{
 		transform = displayObject.worldTransform;
@@ -8008,38 +8018,42 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				context.globalAlpha = displayObject.worldAlpha;
 
 				context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
-				count++;
-				// if (count > 20) {
+				PIXI.totalRenderCalls++;
+				// if (count > 1) {
 				// 	break;
 				// }
 				context.drawImage(displayObject.texture.baseTexture.source,
-								   frame.x,
-								   frame.y,
-								   frame.width,
-								   frame.height,
-								   (displayObject.anchor.x) * -frame.width,
-								   (displayObject.anchor.y) * -frame.height,
-								   frame.width,
-								   frame.height);
+								   ~~frame.x,
+								   ~~frame.y,
+								   ~~frame.width,
+								   ~~frame.height,
+								   ~~((displayObject.anchor.x) * -frame.width),
+								   ~~((displayObject.anchor.y) * -frame.height),
+								   ~~frame.width,
+								   ~~frame.height);
 			}
 	   	}
 	   	else if(displayObject instanceof PIXI.Strip)
 		{
 			context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5])
 			this.renderStrip(displayObject);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.TilingSprite)
 		{
 			this.renderTilingSprite(displayObject, transform);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.CustomRenderable)
 		{
 			displayObject.renderCanvas(this);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.Graphics)
 		{
 			context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5])
 			PIXI.CanvasGraphics.renderGraphics(displayObject, context);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.FilterBlock)
 		{
@@ -8058,6 +8072,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 				PIXI.CanvasGraphics.renderGraphicsMask(displayObject.mask, context);
 				context.clip();
+				PIXI.totalRenderCalls++;
 
 				displayObject.mask.worldAlpha = cacheAlpha;
 			}

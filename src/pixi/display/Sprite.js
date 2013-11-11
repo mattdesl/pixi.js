@@ -6,7 +6,6 @@ PIXI.blendModes = {};
 PIXI.blendModes.NORMAL = 0;
 PIXI.blendModes.SCREEN = 1;
 
-
 /**
  * The SPrite object is the base for all textured objects that are rendered to the screen
  *
@@ -71,10 +70,10 @@ PIXI.Sprite = function(texture)
 	 * with a dirty flag. 
 	 * 
 	 * @property _vertices
-	 * @type {Float32Array}
+	 * @type {Float32Array|Array}
 	 * @private
 	 */
-	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+	this._vertices = new PIXI.Matrix(PIXI.Sprite.VERTEX_SIZE * 4);
 
 	/**
 	 * If true, we will attempt to cull this sprite and its children if it's
