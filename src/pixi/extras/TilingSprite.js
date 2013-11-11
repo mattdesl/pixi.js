@@ -50,7 +50,7 @@ PIXI.TilingSprite = function(texture, width, height)
 
 	//TODO: these should inherit from Sprite
 	this.anchor = new PIXI.Point();
-	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+	this._vertices = new PIXI.Matrix(PIXI.Sprite.VERTEX_SIZE * 4);
 
 	/**
 	 * The offset position of the image that is being tiled
