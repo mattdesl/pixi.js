@@ -1728,6 +1728,9 @@ PIXI.Sprite = function(texture)
 	}
 
 	this.renderable = true;
+
+	this.anchor.x = texture.anchor.x;
+	this.anchor.y = texture.anchor.y;
 };
 
 // constructor
@@ -11336,6 +11339,7 @@ PIXI.AssetLoader = function(assetURLs, crossorigin)
 	 * @type Array<String>
 	 */
 	this.assetURLs = assetURLs;
+    this.assetLoaders = [];
 
     /**
      * Whether the requests should be treated as cross origin
@@ -11387,7 +11391,7 @@ PIXI.AssetLoader.prototype.load = function()
 {
     var scope = this;
 
-	this.loadCount = this.assetURLs.length;
+	this.loadIDX = 0;
 
     for (var i=0; i < this.assetURLs.length; i++)
 	{
@@ -11404,8 +11408,12 @@ PIXI.AssetLoader.prototype.load = function()
         {
             scope.onAssetLoaded();
         });
-        loader.load();
+
+        this.assetLoaders.push( loader );
 	}
+
+    //load the first asset
+    this.assetLoaders[ this.loadIDX ].load();
 };
 
 /**
@@ -11416,15 +11424,23 @@ PIXI.AssetLoader.prototype.load = function()
  */
 PIXI.AssetLoader.prototype.onAssetLoaded = function()
 {
-    this.loadCount--;
 	this.dispatchEvent({type: "onProgress", content: this});
 	if(this.onProgress) this.onProgress();
 
-	if(this.loadCount == 0)
+	if( this.loadIDX == this.assetURLs.length )
 	{
 		this.dispatchEvent({type: "onComplete", content: this});
 		if(this.onComplete) this.onComplete();
-	}
+	} else {
+
+        requestAnimationFrame( function() {
+
+            console.log( 'LOADING', this.loadIDX - 1 );
+            this.assetLoaders[ this.loadIDX - 1 ].load();    
+        }.bind( this ));
+    }
+
+    this.loadIDX++;
 };
 
 
@@ -11546,7 +11562,7 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 
 							PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
 							PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
-
+							
 							PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 							// calculate the offset!
 						}

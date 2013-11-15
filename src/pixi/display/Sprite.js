@@ -100,6 +100,9 @@ PIXI.Sprite = function(texture)
 	}
 
 	this.renderable = true;
+
+	this.anchor.x = texture.anchor.x;
+	this.anchor.y = texture.anchor.y;
 };
 
 // constructor
