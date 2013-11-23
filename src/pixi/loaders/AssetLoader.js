@@ -125,7 +125,6 @@ PIXI.AssetLoader.prototype.onAssetLoaded = function()
 
         requestAnimationFrame( function() {
 
-            console.log( 'LOADING', this.loadIDX - 1 );
             this.assetLoaders[ this.loadIDX - 1 ].load();    
         }.bind( this ));
     }
