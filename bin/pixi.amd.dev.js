@@ -8009,7 +8009,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				continue;
 			}
 
-			if(frame && frame.width && frame.height)
+			if(frame && frame.width && frame.height && displayObject.texture.baseTexture.source)
 			{
 				context.globalAlpha = displayObject.worldAlpha;
 
