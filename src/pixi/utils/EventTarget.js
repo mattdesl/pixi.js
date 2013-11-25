@@ -63,4 +63,10 @@ PIXI.EventTarget = function () {
 
 	};
 
+	this.removeAllEventListeners = function( type ) {
+		var a = listeners[type];
+		if (a)
+			a.length = 0;
+	};
+
 };
