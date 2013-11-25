@@ -164,9 +164,10 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 		if(displayObject instanceof PIXI.Sprite)
 		{
 
-			var frame = displayObject.texture.frame;
+		var frame = displayObject.texture.frame;
 
-			if(frame && frame.width && frame.height)
+			//ignore null sources
+			if(frame && frame.width && frame.height && displayObject.texture.baseTexture.source)
 			{
 				context.globalAlpha = displayObject.worldAlpha;
 
