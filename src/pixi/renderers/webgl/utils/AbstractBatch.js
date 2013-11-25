@@ -52,10 +52,6 @@ PIXI.AbstractBatch = function(gl, size)
 };
 
 
-
-PIXI.AbstractBatch.totalRenderCalls = 0;
-
-
 // constructor
 PIXI.AbstractBatch.constructor = PIXI.AbstractBatch;
 
@@ -126,7 +122,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 
     var gl = this.gl;
     
-    PIXI.AbstractBatch.totalRenderCalls++;
+    PIXI.totalRenderCalls++;
 
 	//bind our vertex buffer
 	// gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -147,7 +143,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 	//number of sprites in batch
 	var numComponents = this.getVertexSize();
 	var spriteCount = (this.idx / (numComponents * 4));
- 	
+ 		
  	//draw the sprites
     gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
     

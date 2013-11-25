@@ -608,7 +608,8 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
 	var len = end - start;
-
+	
+	PIXI.totalRenderCalls++;
     // DRAW THAT this!
     gl.drawElements(gl.TRIANGLES, len * 6, gl.UNSIGNED_SHORT, start * 2 * 6 );
 }

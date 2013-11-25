@@ -17,6 +17,20 @@ PIXI.glRenderer = null;
 //mainly for debugging
 PIXI.blendingEnabled = true;
 
+/** 
+ * This is a static member for debugging your game's WebGL performance.
+ * The number of draw calls in your scene is affected by the order at which
+ * sprites with different textures are drawn, state changes (like switching shader
+ * for rendering PIXI.Graphics, or switching blend mode), and so forth. You should
+ * aim to keep a low number of draw calls for best performance.
+ *
+ * This value increments after each drawElements call. You need to reset it to zero
+ * before you render. Then you can trace it out after rendering to see the # of draw calls.
+ * 
+ * @type {Number}
+ */
+PIXI.totalRenderCalls = 0;
+
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
  * should be used for browsers support webGL. This Render works by automatically managing webGLBatchs.

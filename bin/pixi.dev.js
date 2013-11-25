@@ -4398,6 +4398,7 @@ PIXI.WebGLGraphics.renderGraphics = function(renderer, graphics, projection)
 	// set the index buffer!
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, graphics._webGL.indexBuffer);
 
+	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP,  graphics._webGL.indices.length, gl.UNSIGNED_SHORT, 0 );
 
 	// return to default shader...
@@ -5104,7 +5105,7 @@ PIXI.WebGLExtras.prototype.renderStrip = function(strip, projection)
 	    
 	}
 	//console.log(gl.TRIANGLE_STRIP);
-	
+	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP, strip.indices.length, gl.UNSIGNED_SHORT, 0);
     
   	gl.useProgram(PIXI.shaderProgram);
@@ -5210,6 +5211,20 @@ PIXI.glRenderer = null;
 
 //mainly for debugging
 PIXI.blendingEnabled = true;
+
+/** 
+ * This is a static member for debugging your game's WebGL performance.
+ * The number of draw calls in your scene is affected by the order at which
+ * sprites with different textures are drawn, state changes (like switching shader
+ * for rendering PIXI.Graphics, or switching blend mode), and so forth. You should
+ * aim to keep a low number of draw calls for best performance.
+ *
+ * This value increments after each drawElements call. You need to reset it to zero
+ * before you render. Then you can trace it out after rendering to see the # of draw calls.
+ * 
+ * @type {Number}
+ */
+PIXI.totalRenderCalls = 0;
 
 /**
  * the WebGLRenderer is draws the stage and all its content onto a webGL enabled canvas. This renderer
@@ -6336,7 +6351,8 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
 	var len = end - start;
-
+	
+	PIXI.totalRenderCalls++;
     // DRAW THAT this!
     gl.drawElements(gl.TRIANGLES, len * 6, gl.UNSIGNED_SHORT, start * 2 * 6 );
 }
@@ -6393,10 +6409,6 @@ PIXI.AbstractBatch = function(gl, size)
 	this.idx = 0;
 	this.drawing = false;
 };
-
-
-
-PIXI.AbstractBatch.totalRenderCalls = 0;
 
 
 // constructor
@@ -6469,7 +6481,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 
     var gl = this.gl;
     
-    PIXI.AbstractBatch.totalRenderCalls++;
+    PIXI.totalRenderCalls++;
 
 	//bind our vertex buffer
 	// gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -6490,7 +6502,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 	//number of sprites in batch
 	var numComponents = this.getVertexSize();
 	var spriteCount = (this.idx / (numComponents * 4));
- 	
+ 		
  	//draw the sprites
     gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
     
