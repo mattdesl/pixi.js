@@ -116,7 +116,7 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 
 							PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
 							PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
-
+							
 							PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 							// calculate the offset!
 						}

@@ -53,6 +53,8 @@ PIXI.BaseTexture = function(source)
 	 */
 	this.source = source;
 
+	this.imageUrl = null;
+
 	if(!source)return;
 
 	if(this.source instanceof Image || this.source instanceof HTMLImageElement)
@@ -64,13 +66,17 @@ PIXI.BaseTexture = function(source)
 			this.height = this.source.height;
 
 			PIXI.texturesToUpdate.push(this);
+			// this.dispatchEvent( { type: 'loaded', content: this } );
 		}
 		else
 		{
 
 			var scope = this;
 			this.source.onload = function(){
-
+				if (!scope || !scope.source) {
+					console.warn("No longer have ref to", scope.imageUrl)
+					return;
+				}
 				scope.hasLoaded = true;
 				scope.width = scope.source.width;
 				scope.height = scope.source.height;
@@ -103,8 +109,13 @@ PIXI.BaseTexture.prototype.constructor = PIXI.BaseTexture;
  */
 PIXI.BaseTexture.prototype.destroy = function()
 {
-	if(this.source instanceof Image)
+	if(this.source && this.source instanceof Image)
 	{
+		// TODO: we should also remove this from the cache...
+		// however this seems to introduce issues in our tests with CanvasRenderer
+		// if (this.source.src && this.source.src in PIXI.BaseTextureCache)
+		if (this.imageUrl in PIXI.BaseTextureCache)
+			delete PIXI.BaseTextureCache[this.imageUrl];
 		this.source.src = null;
 	}
 	this.source = null;
@@ -134,6 +145,7 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin)
 		}
 		image.src = imageUrl;
 		baseTexture = new PIXI.BaseTexture(image);
+		baseTexture.imageUrl = imageUrl;
 		PIXI.BaseTextureCache[imageUrl] = baseTexture;
 	}
 

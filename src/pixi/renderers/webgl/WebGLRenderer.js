@@ -16,6 +16,7 @@ PIXI.glRenderer = null;
 
 //mainly for debugging
 PIXI.blendingEnabled = true;
+PIXI.totalRenderCalls = 0;
 
 /** 
  * This is a static member for debugging your game's WebGL performance.
@@ -287,6 +288,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		var group = stage.__childrenRemoved[i].__renderGroup
 		if(group)group.removeDisplayObject(stage.__childrenRemoved[i]);
 	}*/
+
+	PIXI.totalRenderCalls = 0;
 
 	// update any textures
 	PIXI.WebGLRenderer.updateTextures();

@@ -266,6 +266,7 @@ PIXI.WebGLExtras.prototype.renderStrip = function(strip, projection)
 	    
 	}
 	//console.log(gl.TRIANGLE_STRIP);
+	
 	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP, strip.indices.length, gl.UNSIGNED_SHORT, 0);
     

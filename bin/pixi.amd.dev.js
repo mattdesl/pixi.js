@@ -1629,7 +1629,6 @@ PIXI.blendModes = {};
 PIXI.blendModes.NORMAL = 0;
 PIXI.blendModes.SCREEN = 1;
 
-
 /**
  * The SPrite object is the base for all textured objects that are rendered to the screen
  *
@@ -1694,10 +1693,10 @@ PIXI.Sprite = function(texture)
 	 * with a dirty flag. 
 	 * 
 	 * @property _vertices
-	 * @type {Float32Array}
+	 * @type {Float32Array|Array}
 	 * @private
 	 */
-	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+	this._vertices = new PIXI.Matrix(PIXI.Sprite.VERTEX_SIZE * 4);
 
 	/**
 	 * If true, we will attempt to cull this sprite and its children if it's
@@ -1724,6 +1723,9 @@ PIXI.Sprite = function(texture)
 	}
 
 	this.renderable = true;
+
+	this.anchor.x = texture.anchor.x;
+	this.anchor.y = texture.anchor.y;
 };
 
 // constructor
@@ -2754,6 +2756,7 @@ PIXI.InteractionManager = function(stage)
 	this.onTouchEnd = this.onTouchEnd.bind(this);
 	this.onTouchMove = this.onTouchMove.bind(this);
 
+	this.lastCursor = "default";
 
 	this.last = 0;
 }
@@ -2917,7 +2920,8 @@ PIXI.InteractionManager.prototype.update = function()
 	// loop through interactive objects!
 	var length = this.interactiveItems.length;
 
-	this.interactionDOMElement.style.cursor = "default";
+	var newCursor = "default";
+	//this.interactionDOMElement.style.cursor = "default";
 
 	for (var i = 0; i < length; i++)
 	{
@@ -2940,8 +2944,10 @@ PIXI.InteractionManager.prototype.update = function()
 			// loks like there was a hit!
 			if(item.__hit)
 			{
-				if(item.buttonMode) this.interactionDOMElement.style.cursor = "pointer";
-
+				if(item.buttonMode) {
+					//this.interactionDOMElement.style.cursor = "pointer";
+					newCursor = "pointer";
+				}
 				if(!item.__isOver)
 				{
 
@@ -2962,6 +2968,13 @@ PIXI.InteractionManager.prototype.update = function()
 
 		// --->
 	}
+
+	if (newCursor !== this.lastCursor) {
+		this.interactionDOMElement.style.cursor = newCursor;
+		this.lastCursor = newCursor;
+	}
+
+
 }
 
 /**
@@ -3750,6 +3763,12 @@ PIXI.EventTarget = function () {
 
 		}
 
+	};
+
+	this.removeAllEventListeners = function( type ) {
+		var a = listeners[type];
+		if (a)
+			a.length = 0;
 	};
 
 };
@@ -5100,6 +5119,7 @@ PIXI.WebGLExtras.prototype.renderStrip = function(strip, projection)
 	    
 	}
 	//console.log(gl.TRIANGLE_STRIP);
+	
 	PIXI.totalRenderCalls++;
 	gl.drawElements(gl.TRIANGLE_STRIP, strip.indices.length, gl.UNSIGNED_SHORT, 0);
     
@@ -5206,19 +5226,6 @@ PIXI.glRenderer = null;
 
 //mainly for debugging
 PIXI.blendingEnabled = true;
-
-/** 
- * This is a static member for debugging your game's WebGL performance.
- * The number of draw calls in your scene is affected by the order at which
- * sprites with different textures are drawn, state changes (like switching shader
- * for rendering PIXI.Graphics, or switching blend mode), and so forth. You should
- * aim to keep a low number of draw calls for best performance.
- *
- * This value increments after each drawElements call. You need to reset it to zero
- * before you render. Then you can trace it out after rendering to see the # of draw calls.
- * 
- * @type {Number}
- */
 PIXI.totalRenderCalls = 0;
 
 /**
@@ -5477,6 +5484,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 		var group = stage.__childrenRemoved[i].__renderGroup
 		if(group)group.removeDisplayObject(stage.__childrenRemoved[i]);
 	}*/
+
+	PIXI.totalRenderCalls = 0;
 
 	// update any textures
 	PIXI.WebGLRenderer.updateTextures();
@@ -6346,9 +6355,9 @@ PIXI.WebGLBatch.prototype.render = function(start, end)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
 	var len = end - start;
-	
-	PIXI.totalRenderCalls++;
+
     // DRAW THAT this!
+    PIXI.totalRenderCalls++;
     gl.drawElements(gl.TRIANGLES, len * 6, gl.UNSIGNED_SHORT, start * 2 * 6 );
 }
 
@@ -6405,12 +6414,8 @@ PIXI.AbstractBatch = function(gl, size)
 	this.drawing = false;
 };
 
-
 // constructor
 PIXI.AbstractBatch.constructor = PIXI.AbstractBatch;
-
-
-
 
 // for subclasses to implement (i.e. extra attribs)
 PIXI.AbstractBatch.prototype.getVertexSize = function()
@@ -6497,7 +6502,7 @@ PIXI.AbstractBatch.prototype.flush = function()
 	//number of sprites in batch
 	var numComponents = this.getVertexSize();
 	var spriteCount = (this.idx / (numComponents * 4));
- 		
+ 	
  	//draw the sprites
     gl.drawElements(gl.TRIANGLES, spriteCount * 6, gl.UNSIGNED_SHORT, 0);
     
@@ -7816,7 +7821,7 @@ PIXI.WebGLRenderGroup.prototype.handleContextRestored = function(gl)
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
 
-
+PIXI.totalRenderCalls = 0;
 /**
  * the CanvasRenderer draws the stage and all its content onto a 2d canvas. This renderer should be used for browsers that do not support webGL.
  * Dont forget to add the view to your DOM or you will not see anything :)
@@ -7913,6 +7918,7 @@ PIXI.CanvasRenderer.prototype.render = function(stage)
 	// update the background color
 	if(this.view.style.backgroundColor!=stage.backgroundColorString && !this.transparent)this.view.style.backgroundColor = stage.backgroundColorString;
 
+	PIXI.totalRenderCalls = 0;
 	this.context.setTransform(1,0,0,1,0,0);
 	this.context.clearRect(0, 0, this.width, this.height)
     this.renderDisplayObject(stage, stage);
@@ -8009,40 +8015,47 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 				continue;
 			}
 
-			if(frame && frame.width && frame.height)
+			if(frame && frame.width && frame.height && displayObject.texture.baseTexture.source)
 			{
 				context.globalAlpha = displayObject.worldAlpha;
 
 				context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5]);
-
+				PIXI.totalRenderCalls++;
+				// if (count > 1) {
+				// 	break;
+				// }
 				context.drawImage(displayObject.texture.baseTexture.source,
-								   frame.x,
-								   frame.y,
-								   frame.width,
-								   frame.height,
-								   (displayObject.anchor.x) * -frame.width,
-								   (displayObject.anchor.y) * -frame.height,
-								   frame.width,
-								   frame.height);
+								   ~~frame.x,
+								   ~~frame.y,
+								   ~~frame.width,
+								   ~~frame.height,
+								   ~~((displayObject.anchor.x) * -frame.width),
+								   ~~((displayObject.anchor.y) * -frame.height),
+								   ~~frame.width,
+								   ~~frame.height);
 			}
 	   	}
 	   	else if(displayObject instanceof PIXI.Strip)
 		{
 			context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5])
 			this.renderStrip(displayObject);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.TilingSprite)
 		{
 			this.renderTilingSprite(displayObject, transform);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.CustomRenderable)
 		{
 			displayObject.renderCanvas(this);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.Graphics)
 		{
 			context.setTransform(transform[0], transform[3], transform[1], transform[4], transform[2], transform[5])
 			PIXI.CanvasGraphics.renderGraphics(displayObject, context);
+			PIXI.totalRenderCalls++;
 		}
 		else if(displayObject instanceof PIXI.FilterBlock)
 		{
@@ -8061,6 +8074,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 				PIXI.CanvasGraphics.renderGraphicsMask(displayObject.mask, context);
 				context.clip();
+				PIXI.totalRenderCalls++;
 
 				displayObject.mask.worldAlpha = cacheAlpha;
 			}
@@ -8075,6 +8089,7 @@ PIXI.CanvasRenderer.prototype.renderDisplayObject = function(displayObject)
 
 	}
 	while(displayObject != testObject)
+		// console.log(count);
 }
 
 /**
@@ -9021,7 +9036,7 @@ PIXI.TilingSprite = function(texture, width, height)
 
 	//TODO: these should inherit from Sprite
 	this.anchor = new PIXI.Point();
-	this._vertices = new Float32Array(PIXI.Sprite.VERTEX_SIZE * 4);
+	this._vertices = new PIXI.Matrix(PIXI.Sprite.VERTEX_SIZE * 4);
 
 	/**
 	 * The offset position of the image that is being tiled
@@ -10719,6 +10734,8 @@ PIXI.BaseTexture = function(source)
 	 */
 	this.source = source;
 
+	this.imageUrl = null;
+
 	if(!source)return;
 
 	if(this.source instanceof Image || this.source instanceof HTMLImageElement)
@@ -10730,13 +10747,17 @@ PIXI.BaseTexture = function(source)
 			this.height = this.source.height;
 
 			PIXI.texturesToUpdate.push(this);
+			// this.dispatchEvent( { type: 'loaded', content: this } );
 		}
 		else
 		{
 
 			var scope = this;
 			this.source.onload = function(){
-
+				if (!scope || !scope.source) {
+					console.warn("No longer have ref to", scope.imageUrl)
+					return;
+				}
 				scope.hasLoaded = true;
 				scope.width = scope.source.width;
 				scope.height = scope.source.height;
@@ -10769,8 +10790,13 @@ PIXI.BaseTexture.prototype.constructor = PIXI.BaseTexture;
  */
 PIXI.BaseTexture.prototype.destroy = function()
 {
-	if(this.source instanceof Image)
+	if(this.source && this.source instanceof Image)
 	{
+		// TODO: we should also remove this from the cache...
+		// however this seems to introduce issues in our tests with CanvasRenderer
+		// if (this.source.src && this.source.src in PIXI.BaseTextureCache)
+		if (this.imageUrl in PIXI.BaseTextureCache)
+			delete PIXI.BaseTextureCache[this.imageUrl];
 		this.source.src = null;
 	}
 	this.source = null;
@@ -10800,6 +10826,7 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin)
 		}
 		image.src = imageUrl;
 		baseTexture = new PIXI.BaseTexture(image);
+		baseTexture.imageUrl = imageUrl;
 		PIXI.BaseTextureCache[imageUrl] = baseTexture;
 	}
 
@@ -11321,6 +11348,7 @@ PIXI.AssetLoader = function(assetURLs, crossorigin)
 	 * @type Array<String>
 	 */
 	this.assetURLs = assetURLs;
+    this.assetLoaders = [];
 
     /**
      * Whether the requests should be treated as cross origin
@@ -11372,7 +11400,7 @@ PIXI.AssetLoader.prototype.load = function()
 {
     var scope = this;
 
-	this.loadCount = this.assetURLs.length;
+	this.loadIDX = 0;
 
     for (var i=0; i < this.assetURLs.length; i++)
 	{
@@ -11389,8 +11417,12 @@ PIXI.AssetLoader.prototype.load = function()
         {
             scope.onAssetLoaded();
         });
-        loader.load();
+
+        this.assetLoaders.push( loader );
 	}
+
+    //load the first asset
+    this.assetLoaders[ this.loadIDX ].load();
 };
 
 /**
@@ -11401,15 +11433,22 @@ PIXI.AssetLoader.prototype.load = function()
  */
 PIXI.AssetLoader.prototype.onAssetLoaded = function()
 {
-    this.loadCount--;
 	this.dispatchEvent({type: "onProgress", content: this});
 	if(this.onProgress) this.onProgress();
 
-	if(this.loadCount == 0)
+	if( this.loadIDX == this.assetURLs.length )
 	{
 		this.dispatchEvent({type: "onComplete", content: this});
 		if(this.onComplete) this.onComplete();
-	}
+	} else {
+
+        requestAnimationFrame( function() {
+
+            this.assetLoaders[ this.loadIDX - 1 ].load();    
+        }.bind( this ));
+    }
+
+    this.loadIDX++;
 };
 
 
@@ -11531,7 +11570,7 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 
 							PIXI.TextureCache[i].anchor.x = -frameData[i].spriteSourceSize.x / frameData[i].sourceSize.w * upScaleX;
 							PIXI.TextureCache[i].anchor.y = -frameData[i].spriteSourceSize.y / frameData[i].sourceSize.h * upScaleY;
-
+							
 							PIXI.TextureCache[i].trim.x = 0; // (realSize.x / rect.w)
 							// calculate the offset!
 						}
