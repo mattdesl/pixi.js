@@ -139,7 +139,7 @@ PIXI.InteractionManager.prototype.collectInteractiveSprite = function(displayObj
         {
             child.__iParent = null;
 
-            if(child.children.length > 0)
+            if(child.children && child.children.length > 0)
             {
                 this.collectInteractiveSprite(child, iParent);
             }
