@@ -1282,27 +1282,27 @@ PIXI.DisplayObjectContainer.prototype.constructor = PIXI.DisplayObjectContainer;
  */
 
  
-Object.defineProperty(PIXI.DisplayObjectContainer.prototype, 'width', {
-    get: function() {
-        return this.scale.x * this.getLocalBounds().width;
-    },
-    set: function(value) {
+// Object.defineProperty(PIXI.DisplayObjectContainer.prototype, 'width', {
+//     get: function() {
+//         return this.scale.x * this.getLocalBounds().width;
+//     },
+//     set: function(value) {
         
-        var width = this.getLocalBounds().width;
+//         var width = this.getLocalBounds().width;
 
-        if(width !== 0)
-        {
-            this.scale.x = value / ( width/this.scale.x );
-        }
-        else
-        {
-            this.scale.x = 1;
-        }
+//         if(width !== 0)
+//         {
+//             this.scale.x = value / ( width/this.scale.x );
+//         }
+//         else
+//         {
+//             this.scale.x = 1;
+//         }
 
         
-        this._width = value;
-    }
-});
+//         this._width = value;
+//     }
+// });
 
 
 /**
@@ -1312,26 +1312,26 @@ Object.defineProperty(PIXI.DisplayObjectContainer.prototype, 'width', {
  * @type Number
  */
 
-Object.defineProperty(PIXI.DisplayObjectContainer.prototype, 'height', {
-    get: function() {
-        return  this.scale.y * this.getLocalBounds().height;
-    },
-    set: function(value) {
+// Object.defineProperty(PIXI.DisplayObjectContainer.prototype, 'height', {
+//     get: function() {
+//         return  this.scale.y * this.getLocalBounds().height;
+//     },
+//     set: function(value) {
 
-        var height = this.getLocalBounds().height;
+//         var height = this.getLocalBounds().height;
 
-        if(height !== 0)
-        {
-            this.scale.y = value / ( height/this.scale.y );
-        }
-        else
-        {
-            this.scale.y = 1;
-        }
+//         if(height !== 0)
+//         {
+//             this.scale.y = value / ( height/this.scale.y );
+//         }
+//         else
+//         {
+//             this.scale.y = 1;
+//         }
 
-        this._height = value;
-    }
-});
+//         this._height = value;
+//     }
+// });
 
 
 /**
