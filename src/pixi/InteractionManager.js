@@ -551,7 +551,7 @@ PIXI.InteractionManager.prototype.hitTest = function(item, interactionData)
         }
     }
 
-    var length = item.children.length;
+    var length = item.children ? item.children.length : 0;
 
     for (var i = 0; i < length; i++)
     {
