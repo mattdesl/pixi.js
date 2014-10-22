@@ -96,7 +96,7 @@ PIXI.sayHello = function (type)
     }
     else if (window['console'])
     {
-        console.log('Pixi.js ' + PIXI.VERSION + ' - http://www.pixijs.com/');
+        console.log('Pixi.js ' + PIXI.VERSION + ' / @jam3 patches - http://www.pixijs.com/');
     }
 
     PIXI.dontSayHello = true;

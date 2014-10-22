@@ -1,12 +1,12 @@
 /**
  * @license
- * pixi.js - v1.6.1
+ * pixi - v1.6.1
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
  * Compiled: 2014-10-22
  *
- * pixi.js is licensed under the MIT License.
+ * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
  */
 /**
@@ -115,7 +115,7 @@ PIXI.sayHello = function (type)
     }
     else if (window['console'])
     {
-        console.log('Pixi.js ' + PIXI.VERSION + ' - http://www.pixijs.com/');
+        console.log('Pixi.js ' + PIXI.VERSION + ' / @jam3 patches - http://www.pixijs.com/');
     }
 
     PIXI.dontSayHello = true;
