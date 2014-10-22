@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2014-10-14
+ * Compiled: 2014-10-22
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -6590,7 +6590,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
 
     // -- Does this need to be set every frame? -- //
     //gl.colorMask(true, true, true, this.transparent);
-    gl.viewport(0, 0, this.width, this.height);
+    // gl.viewport(0, 0, this.width, this.height);
 
     // make sure we are bound to the main frame buffer
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
