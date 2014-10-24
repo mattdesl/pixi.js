@@ -834,7 +834,6 @@ PIXI.WebGLGraphicsData.prototype.reset = function()
 
 PIXI.WebGLGraphicsData.prototype.dispose = function()
 {
-    console.log("DEleting buffers");
     var gl = this.gl;
     gl.deleteBuffer(this.buffer);
     gl.deleteBuffer(this.indexBuffer);
