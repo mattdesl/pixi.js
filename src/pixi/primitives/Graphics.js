@@ -2,6 +2,7 @@
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
 
+PIXI.WebGLGraphicsToDestroy = [];
 
 /**
  * The Graphics class contains a set of methods that you can use to create primitive shapes and lines.
@@ -118,11 +119,21 @@ PIXI.Graphics = function()
      * @type {Boolean}
      */
     this.dirty = true;
+
+    this._dipsosed = false;
 };
 
 // constructor
 PIXI.Graphics.prototype = Object.create( PIXI.DisplayObjectContainer.prototype );
 PIXI.Graphics.prototype.constructor = PIXI.Graphics;
+
+PIXI.Graphics.prototype.dispose = function() {
+    this._disposed = true;
+    if (this._cachedSprite)
+        this.destroyCachedSprite();
+    this.dirty = true;
+    PIXI.WebGLGraphicsToDestroy.push(this);
+};
 
 /**
  * If cacheAsBitmap is true the graphics object will then be rendered as if it was a sprite.

@@ -51,7 +51,8 @@
         //mocha globals
         "describe": false,
         "it": false,
-
+        "console": true,
+        
         //resemble globals
         "resemble": false
     },

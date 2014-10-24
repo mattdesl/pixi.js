@@ -1450,7 +1450,16 @@ PIXI.DisplayObjectContainer.prototype.removeChildAt = function(index)
 
     child.parent = undefined;
     this.children.splice( index, 1 );
+    if (typeof child.onRemoved === 'function')
+        child.onRemoved();
     return child;
+};
+
+PIXI.DisplayObjectContainer.prototype.dispose = function() {
+    for (var i=0; i<this.children.length; i++) {
+        if (typeof this.children[i].dispose === 'function')
+            this.children[i].dispose();
+    }
 };
 
 /**
@@ -5570,6 +5579,9 @@ PIXI.WebGLGraphics.renderGraphics = function(graphics, renderSession)//projectio
         shader = renderSession.shaderManager.primitiveShader,
         webGLData;
 
+    if (graphics._disposed)
+        return;
+
     if(graphics.dirty)
     {
         PIXI.WebGLGraphics.updateGraphics(graphics, gl);
@@ -5639,10 +5651,21 @@ PIXI.WebGLGraphics.updateGraphics = function(graphics, gl)
     // if the graphics object does not exist in the webGL context time to create it!
     if(!webGL)webGL = graphics._webGL[gl.id] = {lastIndex:0, data:[], gl:gl};
 
+    var i;
+
+    if (graphics._disposed) {
+        //dispose all the data
+        for (i = 0; i < webGL.data.length; i++) {
+            if (!webGL.data[i]._disposed)
+                webGL.data[i].dispose();
+        }
+        return;
+    }
+
     // flag the graphics as not dirty as we are about to update it...
     graphics.dirty = false;
 
-    var i;
+    
 
     // if the user cleared the graphics object we will need to clear every object
     if(graphics.clearDirty)
@@ -6357,6 +6380,16 @@ PIXI.WebGLGraphicsData.prototype.reset = function()
     this.lastIndex = 0;
 };
 
+PIXI.WebGLGraphicsData.prototype.dispose = function()
+{
+    console.log("DEleting buffers");
+    var gl = this.gl;
+    gl.deleteBuffer(this.buffer);
+    gl.deleteBuffer(this.indexBuffer);
+    this.dirty = false;
+    this._disposed = true;
+};
+
 PIXI.WebGLGraphicsData.prototype.upload = function()
 {
     var gl = this.gl;
@@ -6575,7 +6608,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
     }
 
     // update any textures this includes uvs and uploading them to the gpu
-    PIXI.WebGLRenderer.updateTextures();
+    PIXI.WebGLRenderer.updateTextures(this.gl);
 
     // update the scene graph
     stage.updateTransform();
@@ -6698,7 +6731,7 @@ PIXI.WebGLRenderer.prototype.renderDisplayObject = function(displayObject, proje
  * @method updateTextures
  * @private
  */
-PIXI.WebGLRenderer.updateTextures = function()
+PIXI.WebGLRenderer.updateTextures = function(gl)
 {
     var i = 0;
 
@@ -6713,8 +6746,12 @@ PIXI.WebGLRenderer.updateTextures = function()
     for (i = 0; i < PIXI.texturesToDestroy.length; i++)
         PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
 
+    for (i = 0; i< PIXI.WebGLGraphicsToDestroy.length; i++)
+        PIXI.WebGLGraphics.updateGraphics(PIXI.WebGLGraphicsToDestroy[i], gl);
+
     PIXI.texturesToUpdate.length = 0;
     PIXI.texturesToDestroy.length = 0;
+    PIXI.WebGLGraphicsToDestroy.length = 0;
     PIXI.Texture.frameUpdates.length = 0;
 };
 
@@ -6822,6 +6859,7 @@ PIXI.createWebGLTexture = function(texture, gl)
 
     return  texture._glTextures[gl.id];
 };
+
 
 /**
  * Updates a WebGL texture
@@ -9906,6 +9944,7 @@ PIXI.CanvasGraphics.renderGraphicsMask = function(graphics, context)
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
 
+PIXI.WebGLGraphicsToDestroy = [];
 
 /**
  * The Graphics class contains a set of methods that you can use to create primitive shapes and lines.
@@ -10022,11 +10061,21 @@ PIXI.Graphics = function()
      * @type {Boolean}
      */
     this.dirty = true;
+
+    this._dipsosed = false;
 };
 
 // constructor
 PIXI.Graphics.prototype = Object.create( PIXI.DisplayObjectContainer.prototype );
 PIXI.Graphics.prototype.constructor = PIXI.Graphics;
+
+PIXI.Graphics.prototype.dispose = function() {
+    this._disposed = true;
+    if (this._cachedSprite)
+        this.destroyCachedSprite();
+    this.dirty = true;
+    PIXI.WebGLGraphicsToDestroy.push(this);
+};
 
 /**
  * If cacheAsBitmap is true the graphics object will then be rendered as if it was a sprite.
@@ -14000,7 +14049,7 @@ PIXI.RenderTexture.prototype.renderWebGL = function(displayObject, position, cle
     }
 
     // update the textures!
-    PIXI.WebGLRenderer.updateTextures();
+    PIXI.WebGLRenderer.updateTextures(gl);
 
     this.renderer.spriteBatch.dirty = true;
     

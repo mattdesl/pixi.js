@@ -31,6 +31,9 @@ PIXI.WebGLGraphics.renderGraphics = function(graphics, renderSession)//projectio
         shader = renderSession.shaderManager.primitiveShader,
         webGLData;
 
+    if (graphics._disposed)
+        return;
+
     if(graphics.dirty)
     {
         PIXI.WebGLGraphics.updateGraphics(graphics, gl);
@@ -100,10 +103,21 @@ PIXI.WebGLGraphics.updateGraphics = function(graphics, gl)
     // if the graphics object does not exist in the webGL context time to create it!
     if(!webGL)webGL = graphics._webGL[gl.id] = {lastIndex:0, data:[], gl:gl};
 
+    var i;
+
+    if (graphics._disposed) {
+        //dispose all the data
+        for (i = 0; i < webGL.data.length; i++) {
+            if (!webGL.data[i]._disposed)
+                webGL.data[i].dispose();
+        }
+        return;
+    }
+
     // flag the graphics as not dirty as we are about to update it...
     graphics.dirty = false;
 
-    var i;
+    
 
     // if the user cleared the graphics object we will need to clear every object
     if(graphics.clearDirty)
@@ -816,6 +830,16 @@ PIXI.WebGLGraphicsData.prototype.reset = function()
     this.points = [];
     this.indices = [];
     this.lastIndex = 0;
+};
+
+PIXI.WebGLGraphicsData.prototype.dispose = function()
+{
+    console.log("DEleting buffers");
+    var gl = this.gl;
+    gl.deleteBuffer(this.buffer);
+    gl.deleteBuffer(this.indexBuffer);
+    this.dirty = false;
+    this._disposed = true;
 };
 
 PIXI.WebGLGraphicsData.prototype.upload = function()

@@ -199,7 +199,16 @@ PIXI.DisplayObjectContainer.prototype.removeChildAt = function(index)
 
     child.parent = undefined;
     this.children.splice( index, 1 );
+    if (typeof child.onRemoved === 'function')
+        child.onRemoved();
     return child;
+};
+
+PIXI.DisplayObjectContainer.prototype.dispose = function() {
+    for (var i=0; i<this.children.length; i++) {
+        if (typeof this.children[i].dispose === 'function')
+            this.children[i].dispose();
+    }
 };
 
 /**

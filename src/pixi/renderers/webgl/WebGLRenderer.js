@@ -198,7 +198,7 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
     }
 
     // update any textures this includes uvs and uploading them to the gpu
-    PIXI.WebGLRenderer.updateTextures();
+    PIXI.WebGLRenderer.updateTextures(this.gl);
 
     // update the scene graph
     stage.updateTransform();
@@ -321,7 +321,7 @@ PIXI.WebGLRenderer.prototype.renderDisplayObject = function(displayObject, proje
  * @method updateTextures
  * @private
  */
-PIXI.WebGLRenderer.updateTextures = function()
+PIXI.WebGLRenderer.updateTextures = function(gl)
 {
     var i = 0;
 
@@ -336,8 +336,12 @@ PIXI.WebGLRenderer.updateTextures = function()
     for (i = 0; i < PIXI.texturesToDestroy.length; i++)
         PIXI.WebGLRenderer.destroyTexture(PIXI.texturesToDestroy[i]);
 
+    for (i = 0; i< PIXI.WebGLGraphicsToDestroy.length; i++)
+        PIXI.WebGLGraphics.updateGraphics(PIXI.WebGLGraphicsToDestroy[i], gl);
+
     PIXI.texturesToUpdate.length = 0;
     PIXI.texturesToDestroy.length = 0;
+    PIXI.WebGLGraphicsToDestroy.length = 0;
     PIXI.Texture.frameUpdates.length = 0;
 };
 
@@ -445,6 +449,7 @@ PIXI.createWebGLTexture = function(texture, gl)
 
     return  texture._glTextures[gl.id];
 };
+
 
 /**
  * Updates a WebGL texture

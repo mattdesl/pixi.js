@@ -203,7 +203,7 @@ PIXI.RenderTexture.prototype.renderWebGL = function(displayObject, position, cle
     }
 
     // update the textures!
-    PIXI.WebGLRenderer.updateTextures();
+    PIXI.WebGLRenderer.updateTextures(gl);
 
     this.renderer.spriteBatch.dirty = true;
     
