@@ -371,7 +371,7 @@ PIXI.DisplayObjectContainer.prototype.removeStageReference = function()
         child.removeStageReference();
     }
 
-    if(this._interactive)this.stage.dirty = true;
+    if(this.stage && this._interactive)this.stage.dirty = true;
     
     this.stage = null;
 };

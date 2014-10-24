@@ -331,6 +331,12 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'worldVisible', {
     }
 });
 
+PIXI.DisplayObject.prototype.removeStageReference = function()
+{
+    if(this.stage && this._interactive) this.stage.dirty = true;
+    this.stage = null;
+};
+
 /**
  * Sets a mask for the displayObject. A mask is an object that limits the visibility of an object to the shape of the mask applied to it.
  * In PIXI a regular mask must be a PIXI.Graphics object. This allows for much faster masking in canvas as it utilises shape clipping.
