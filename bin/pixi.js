@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2014-10-24
+ * Compiled: 2014-10-27
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
