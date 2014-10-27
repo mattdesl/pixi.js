@@ -205,7 +205,7 @@ PIXI.DisplayObject = function()
      * 
      * @type PIXI.Rectangle
      */
-    this.scissor = null;
+    this.clip = null;
     this._scissorWorld = new PIXI.Rectangle();
 
     this._cacheAsBitmap = false;
@@ -433,8 +433,8 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'cacheAsBitmap', {
 });
 
 
-PIXI.DisplayObject.prototype.getWorldScissor = function(renderer) {
-    if (!this.scissor)
+PIXI.DisplayObject.prototype.__getWorldScissor = function(renderer) {
+    if (!this.clip)
         return null;
 
     var worldTransform = this.worldTransform;
@@ -445,10 +445,10 @@ PIXI.DisplayObject.prototype.getWorldScissor = function(renderer) {
     var tx = worldTransform.tx;
     var ty = worldTransform.ty;
         
-    var x = this.scissor.x,
-        y = this.scissor.y,
-        x2 = x+this.scissor.width,
-        y2 = y+this.scissor.height
+    var x = this.clip.x,
+        y = this.clip.y,
+        x2 = x+this.clip.width,
+        y2 = y+this.clip.height
 
     this._scissorWorld.x = a * x + c * y + tx;
     this._scissorWorld.y = b * x + d * y + ty;

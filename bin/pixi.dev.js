@@ -823,7 +823,7 @@ PIXI.DisplayObject = function()
      * 
      * @type PIXI.Rectangle
      */
-    this.scissor = null;
+    this.clip = null;
     this._scissorWorld = new PIXI.Rectangle();
 
     this._cacheAsBitmap = false;
@@ -1051,8 +1051,8 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'cacheAsBitmap', {
 });
 
 
-PIXI.DisplayObject.prototype.getWorldScissor = function(renderer) {
-    if (!this.scissor)
+PIXI.DisplayObject.prototype.__getWorldScissor = function(renderer) {
+    if (!this.clip)
         return null;
 
     var worldTransform = this.worldTransform;
@@ -1063,10 +1063,10 @@ PIXI.DisplayObject.prototype.getWorldScissor = function(renderer) {
     var tx = worldTransform.tx;
     var ty = worldTransform.ty;
         
-    var x = this.scissor.x,
-        y = this.scissor.y,
-        x2 = x+this.scissor.width,
-        y2 = y+this.scissor.height
+    var x = this.clip.x,
+        y = this.clip.y,
+        x2 = x+this.clip.width,
+        y2 = y+this.clip.height
 
     this._scissorWorld.x = a * x + c * y + tx;
     this._scissorWorld.y = b * x + d * y + ty;
@@ -1740,10 +1740,13 @@ PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
     }
     else
     {
-        if (this.scissor)
+        if (this.clip)
         {
             renderSession.spriteBatch.flush();
-            var pushed = renderSession.scissorStack.push(this.getWorldScissor(renderSession.renderer));
+
+            //the scissor object may change as it's pushed to the scissor stack
+            var worldScis = this.__getWorldScissor(renderSession.renderer)
+            var pushed = renderSession.scissorStack.push(worldScis);
             if (!pushed)
                 return;
         }
@@ -1754,7 +1757,7 @@ PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
             this.children[i]._renderWebGL(renderSession);
         }
 
-        if (this.scissor) {
+        if (this.clip) {
             renderSession.spriteBatch.flush();
             renderSession.scissorStack.pop();
         }
@@ -4783,8 +4786,7 @@ PIXI.ScissorStack = function(gl, opt) {
 }
 
 PIXI.ScissorStack.prototype.push = (function() {
-    function fix(rect) {
-        var out = { x: 0, y: 0, width: 0, height: 0 }
+    function fix(out, rect) {
         out.x = Math.round(rect.x)
         out.y = Math.round(rect.y)
         out.width = Math.round(rect.width)
@@ -4801,7 +4803,7 @@ PIXI.ScissorStack.prototype.push = (function() {
     }
 
     return function(rect) {
-        var scissor = fix(rect)
+        var scissor = fix(rect, rect)
 
         if (this.scissors.length === 0) {
             if (scissor.width < 1 || scissor.height < 1)

@@ -10,8 +10,7 @@ PIXI.ScissorStack = function(gl, opt) {
 }
 
 PIXI.ScissorStack.prototype.push = (function() {
-    function fix(rect) {
-        var out = { x: 0, y: 0, width: 0, height: 0 }
+    function fix(out, rect) {
         out.x = Math.round(rect.x)
         out.y = Math.round(rect.y)
         out.width = Math.round(rect.width)
@@ -28,7 +27,7 @@ PIXI.ScissorStack.prototype.push = (function() {
     }
 
     return function(rect) {
-        var scissor = fix(rect)
+        var scissor = fix(rect, rect)
 
         if (this.scissors.length === 0) {
             if (scissor.width < 1 || scissor.height < 1)

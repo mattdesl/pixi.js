@@ -287,12 +287,13 @@ PIXI.Sprite.prototype._renderWebGL = function(renderSession)
     }
     else
     {
-        if (this.scissor)
+        if (this.clip)
         {
-
-
             renderSession.spriteBatch.flush();
-            var pushed = renderSession.scissorStack.push(this.scissor);
+
+            //the scissor object may change as it's pushed to the scissor stack
+            var worldScis = this.__getWorldScissor(renderSession.renderer)
+            var pushed = renderSession.scissorStack.push(worldScis);
             if (!pushed)
                 return;
         }
@@ -305,7 +306,7 @@ PIXI.Sprite.prototype._renderWebGL = function(renderSession)
             this.children[i]._renderWebGL(renderSession);
         }
 
-        if (this.scissor) {
+        if (this.clip) {
             renderSession.spriteBatch.flush();
             renderSession.scissorStack.pop();
         }
