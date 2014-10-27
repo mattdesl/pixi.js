@@ -814,6 +814,18 @@ PIXI.DisplayObject = function()
      */
     this._mask = null;
 
+    /**
+     * The scissor area; this is faster
+     * than masking but only works on rectangles.
+     * It is defined in local space.
+     *
+     * If null, no masking occurs.
+     * 
+     * @type PIXI.Rectangle
+     */
+    this.scissor = null;
+    this._scissorWorld = new PIXI.Rectangle();
+
     this._cacheAsBitmap = false;
     this._cacheIsDirty = false;
 
@@ -1037,6 +1049,47 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'cacheAsBitmap', {
         this._cacheAsBitmap = value;
     }
 });
+
+
+PIXI.DisplayObject.prototype.getWorldScissor = function(renderer) {
+    if (!this.scissor)
+        return null;
+
+    var worldTransform = this.worldTransform;
+    var a = worldTransform.a;
+    var b = worldTransform.c;
+    var c = worldTransform.b;
+    var d = worldTransform.d;
+    var tx = worldTransform.tx;
+    var ty = worldTransform.ty;
+        
+    var x = this.scissor.x,
+        y = this.scissor.y,
+        x2 = x+this.scissor.width,
+        y2 = y+this.scissor.height
+
+    this._scissorWorld.x = a * x + c * y + tx;
+    this._scissorWorld.y = b * x + d * y + ty;
+    this._scissorWorld.width = Math.abs((a * x2 + c * y + tx) - this._scissorWorld.x);
+    this._scissorWorld.height = Math.abs((b * x + d * y2 + ty) - this._scissorWorld.y);
+    this._scissorWorld.y = (renderer.height-this._scissorWorld.y-this._scissorWorld.height);
+
+    var DPR = (window.devicePixelRatio||1);
+    this._scissorWorld.x *= DPR
+    this._scissorWorld.y *= DPR
+    this._scissorWorld.width *= DPR
+    this._scissorWorld.height *= DPR
+
+    // this._scissorWorld.y = (renderer.height*DPR)-this._scissorWorld.
+
+    return this._scissorWorld;
+
+
+
+        // var clipHeight = app.deviceHeight * this.size.y
+        // clip.bind(app.gl, 0, app.deviceHeight - clipHeight, app.deviceWidth, clipHeight)
+        
+}
 
 /*
  * Updates the object transform for rendering
@@ -1581,6 +1634,7 @@ PIXI.DisplayObjectContainer.prototype.getBounds = function(matrix)
     return bounds;
 };
 
+
 PIXI.DisplayObjectContainer.prototype.getLocalBounds = function()
 {
     var matrixCache = this.worldTransform;
@@ -1657,7 +1711,6 @@ PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
 
     if(this._mask || this._filters)
     {
-        
         // push filter first as we need to ensure the stencil buffer is correct for any masking
         if(this._filters)
         {
@@ -1687,10 +1740,23 @@ PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
     }
     else
     {
+        if (this.scissor)
+        {
+            renderSession.spriteBatch.flush();
+            var pushed = renderSession.scissorStack.push(this.getWorldScissor(renderSession.renderer));
+            if (!pushed)
+                return;
+        }
+
         // simple render children!
         for(i=0,j=this.children.length; i<j; i++)
         {
             this.children[i]._renderWebGL(renderSession);
+        }
+
+        if (this.scissor) {
+            renderSession.spriteBatch.flush();
+            renderSession.scissorStack.pop();
         }
     }
 };
@@ -1885,6 +1951,8 @@ PIXI.Sprite.prototype.onTextureUpdate = function()
     //this.updateFrame = true;
 };
 
+
+
 /**
 * Returns the framing rectangle of the sprite as a PIXI.Rectangle object
 *
@@ -2017,12 +2085,27 @@ PIXI.Sprite.prototype._renderWebGL = function(renderSession)
     }
     else
     {
+        if (this.scissor)
+        {
+
+
+            renderSession.spriteBatch.flush();
+            var pushed = renderSession.scissorStack.push(this.scissor);
+            if (!pushed)
+                return;
+        }
+
         renderSession.spriteBatch.render(this);
 
         // simple render children!
         for(i=0,j=this.children.length; i<j; i++)
         {
             this.children[i]._renderWebGL(renderSession);
+        }
+
+        if (this.scissor) {
+            renderSession.spriteBatch.flush();
+            renderSession.scissorStack.pop();
         }
     }
 
@@ -4688,6 +4771,80 @@ PIXI.PolyK._convex = function(ax, ay, bx, by, cx, cy, sign)
     return ((ay-by)*(cx-bx) + (bx-ax)*(cy-by) >= 0) === sign;
 };
 
+// https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/scenes/scene2d/utils/ScissorStack.java
+
+PIXI.ScissorStack = function(gl, opt) {
+    if (!(this instanceof PIXI.ScissorStack))
+        return new PIXI.ScissorStack(gl, opt)
+
+    opt=opt||{}
+    this.gl = gl
+    this.scissors = []
+}
+
+PIXI.ScissorStack.prototype.push = (function() {
+    function fix(rect) {
+        var out = { x: 0, y: 0, width: 0, height: 0 }
+        out.x = Math.round(rect.x)
+        out.y = Math.round(rect.y)
+        out.width = Math.round(rect.width)
+        out.height = Math.round(rect.height)
+        if (out.width < 0) {
+            out.width = -out.width
+            out.x -= out.width
+        }
+        if (out.height < 0) {
+            out.height = -out.height
+            out.y -= out.height
+        }
+        return out
+    }
+
+    return function(rect) {
+        var scissor = fix(rect)
+
+        if (this.scissors.length === 0) {
+            if (scissor.width < 1 || scissor.height < 1)
+                return false
+            this.gl.enable(this.gl.SCISSOR_TEST)
+        } else {
+            // merge scissors
+            var parent = this.scissors[this.scissors.length-1]
+            var minX = Math.max(parent.x, scissor.x)
+            var maxX = Math.min(parent.x + parent.width, scissor.x + scissor.width)
+            if (maxX - minX < 1) return false
+
+            var minY = Math.max(parent.y, scissor.y)
+            var maxY = Math.min(parent.y + parent.height, scissor.y + scissor.height)
+            if (maxY - minY < 1) return false
+
+            scissor.x = minX
+            scissor.y = minY
+            scissor.width = maxX - minX
+            scissor.height = Math.max(1, maxY - minY)
+        }
+        this.scissors.push(scissor)
+        this.gl.scissor(scissor.x, scissor.y, scissor.width, scissor.height)
+        return true
+    }
+})();
+
+PIXI.ScissorStack.prototype.pop = function() {
+    if (this.scissors.length === 0)
+        return
+    var old = this.scissors.pop()
+    if (this.scissors.length === 0)
+        this.gl.disable(this.gl.SCISSOR_TEST)
+    else {
+        var sc = this.scissors.peek()
+        this.gl.scissor(sc.x, sc.y, sc.width, sc.height)
+    }
+    return old
+}
+
+PIXI.ScissorStack.prototype.peek = function() {
+    return this.scissors.peek()
+}
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
@@ -6560,9 +6717,11 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
     this.filterManager = new PIXI.WebGLFilterManager(gl, this.transparent); // manages the filters
     this.stencilManager = new PIXI.WebGLStencilManager(gl);
     this.blendModeManager = new PIXI.WebGLBlendModeManager(gl);
+    this.scissorStack = new PIXI.ScissorStack(this.gl);
 
     this.renderSession = {};
     this.renderSession.gl = this.gl;
+    this.renderSession.scissorStack = this.scissorStack;
     this.renderSession.drawCount = 0;
     this.renderSession.shaderManager = this.shaderManager;
     this.renderSession.maskManager = this.maskManager;

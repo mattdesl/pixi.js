@@ -11,7 +11,7 @@
     // them if you want to allow only a safe subset of JavaScript, very
     // useful when your codebase is shared with a big number of developers
     // with different skill levels.
-
+    "asi": true,
     "bitwise"       : false,    // Disallow bitwise operators (&, |, ^, etc.).
     "camelcase"     : true,     // Force all variable names to use either camelCase or UPPER_CASE.
     "curly"         : false,    // Require {} for every new block or scope.
@@ -63,7 +63,7 @@
     // them only if you are absolutely positive that you know what you are
     // doing.
 
-    "asi"           : false,    // Tolerate Automatic Semicolon Insertion (no semicolons).
+    //"asi"           : false,    // Tolerate Automatic Semicolon Insertion (no semicolons).
     "boss"          : true,     // Tolerate assignments inside if, for & while. Usually conditions & loops are for comparison, not assignments.
     "debug"         : false,    // Allow debugger statements e.g. browser breakpoints.
     "eqnull"        : false,    // Tolerate use of `== null`.

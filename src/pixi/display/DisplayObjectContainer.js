@@ -330,6 +330,7 @@ PIXI.DisplayObjectContainer.prototype.getBounds = function(matrix)
     return bounds;
 };
 
+
 PIXI.DisplayObjectContainer.prototype.getLocalBounds = function()
 {
     var matrixCache = this.worldTransform;
@@ -406,7 +407,6 @@ PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
 
     if(this._mask || this._filters)
     {
-        
         // push filter first as we need to ensure the stencil buffer is correct for any masking
         if(this._filters)
         {
@@ -436,10 +436,23 @@ PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
     }
     else
     {
+        if (this.scissor)
+        {
+            renderSession.spriteBatch.flush();
+            var pushed = renderSession.scissorStack.push(this.getWorldScissor(renderSession.renderer));
+            if (!pushed)
+                return;
+        }
+
         // simple render children!
         for(i=0,j=this.children.length; i<j; i++)
         {
             this.children[i]._renderWebGL(renderSession);
+        }
+
+        if (this.scissor) {
+            renderSession.spriteBatch.flush();
+            renderSession.scissorStack.pop();
         }
     }
 };

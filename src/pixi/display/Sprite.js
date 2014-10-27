@@ -153,6 +153,8 @@ PIXI.Sprite.prototype.onTextureUpdate = function()
     //this.updateFrame = true;
 };
 
+
+
 /**
 * Returns the framing rectangle of the sprite as a PIXI.Rectangle object
 *
@@ -285,12 +287,27 @@ PIXI.Sprite.prototype._renderWebGL = function(renderSession)
     }
     else
     {
+        if (this.scissor)
+        {
+
+
+            renderSession.spriteBatch.flush();
+            var pushed = renderSession.scissorStack.push(this.scissor);
+            if (!pushed)
+                return;
+        }
+
         renderSession.spriteBatch.render(this);
 
         // simple render children!
         for(i=0,j=this.children.length; i<j; i++)
         {
             this.children[i]._renderWebGL(renderSession);
+        }
+
+        if (this.scissor) {
+            renderSession.spriteBatch.flush();
+            renderSession.scissorStack.pop();
         }
     }
 

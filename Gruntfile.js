@@ -33,6 +33,7 @@ module.exports = function(grunt) {
             '<%= dirs.src %>/utils/EventTarget.js',
             '<%= dirs.src %>/utils/Detector.js',
             '<%= dirs.src %>/utils/Polyk.js',
+            '<%= dirs.src %>/utils/ScissorStack.js',
             '<%= dirs.src %>/renderers/webgl/utils/WebGLShaderUtils.js',
             '<%= dirs.src %>/renderers/webgl/shaders/PixiShader.js',
             '<%= dirs.src %>/renderers/webgl/shaders/PixiFastShader.js',
@@ -107,7 +108,8 @@ module.exports = function(grunt) {
             build: 'bin',
             docs: 'docs',
             src: 'src/pixi',
-            test: 'test'
+            test: 'test',
+            modules: 'node_modules'
         },
         files: {
             srcBlob: '<%= dirs.src %>/**/*.js',
@@ -143,7 +145,9 @@ module.exports = function(grunt) {
             source: {
                 src: srcFiles.concat('Gruntfile.js'),
                 options: {
-                    ignores: '<%= dirs.src %>/**/{Intro,Outro,Spine,Pixi}.js'
+                    ignores: [
+                        '<%= dirs.src %>/**/{Intro,Outro,Spine,Pixi}.js'
+                    ]
                 }
             },
             test: {

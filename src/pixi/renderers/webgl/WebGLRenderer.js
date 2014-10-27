@@ -151,9 +151,11 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
     this.filterManager = new PIXI.WebGLFilterManager(gl, this.transparent); // manages the filters
     this.stencilManager = new PIXI.WebGLStencilManager(gl);
     this.blendModeManager = new PIXI.WebGLBlendModeManager(gl);
+    this.scissorStack = new PIXI.ScissorStack(this.gl);
 
     this.renderSession = {};
     this.renderSession.gl = this.gl;
+    this.renderSession.scissorStack = this.scissorStack;
     this.renderSession.drawCount = 0;
     this.renderSession.shaderManager = this.shaderManager;
     this.renderSession.maskManager = this.maskManager;

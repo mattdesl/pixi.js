@@ -196,6 +196,18 @@ PIXI.DisplayObject = function()
      */
     this._mask = null;
 
+    /**
+     * The scissor area; this is faster
+     * than masking but only works on rectangles.
+     * It is defined in local space.
+     *
+     * If null, no masking occurs.
+     * 
+     * @type PIXI.Rectangle
+     */
+    this.scissor = null;
+    this._scissorWorld = new PIXI.Rectangle();
+
     this._cacheAsBitmap = false;
     this._cacheIsDirty = false;
 
@@ -419,6 +431,47 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'cacheAsBitmap', {
         this._cacheAsBitmap = value;
     }
 });
+
+
+PIXI.DisplayObject.prototype.getWorldScissor = function(renderer) {
+    if (!this.scissor)
+        return null;
+
+    var worldTransform = this.worldTransform;
+    var a = worldTransform.a;
+    var b = worldTransform.c;
+    var c = worldTransform.b;
+    var d = worldTransform.d;
+    var tx = worldTransform.tx;
+    var ty = worldTransform.ty;
+        
+    var x = this.scissor.x,
+        y = this.scissor.y,
+        x2 = x+this.scissor.width,
+        y2 = y+this.scissor.height
+
+    this._scissorWorld.x = a * x + c * y + tx;
+    this._scissorWorld.y = b * x + d * y + ty;
+    this._scissorWorld.width = Math.abs((a * x2 + c * y + tx) - this._scissorWorld.x);
+    this._scissorWorld.height = Math.abs((b * x + d * y2 + ty) - this._scissorWorld.y);
+    this._scissorWorld.y = (renderer.height-this._scissorWorld.y-this._scissorWorld.height);
+
+    var DPR = (window.devicePixelRatio||1);
+    this._scissorWorld.x *= DPR
+    this._scissorWorld.y *= DPR
+    this._scissorWorld.width *= DPR
+    this._scissorWorld.height *= DPR
+
+    // this._scissorWorld.y = (renderer.height*DPR)-this._scissorWorld.
+
+    return this._scissorWorld;
+
+
+
+        // var clipHeight = app.deviceHeight * this.size.y
+        // clip.bind(app.gl, 0, app.deviceHeight - clipHeight, app.deviceWidth, clipHeight)
+        
+}
 
 /*
  * Updates the object transform for rendering
