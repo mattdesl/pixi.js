@@ -654,6 +654,25 @@ PIXI.DisplayObject.prototype._renderCanvas = function(renderSession)
     renderSession = renderSession;
 };
 
+
+Object.defineProperty(PIXI.DisplayObject.prototype, 'scaleX', {
+    get: function() {
+        return  this.scale.x;
+    },
+    set: function(value) {
+        this.scale.x = value;
+    }
+});
+Object.defineProperty(PIXI.DisplayObject.prototype, 'scaleY', {
+    get: function() {
+        return  this.scale.y;
+    },
+    set: function(value) {
+        this.scale.y = value;
+    }
+});
+
+
 /**
  * The position of the displayObject on the x axis relative to the local coordinates of the parent.
  *
