@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2014-10-27
+ * Compiled: 2014-11-03
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -3357,6 +3357,7 @@ PIXI.InteractionData.prototype.constructor = PIXI.InteractionData;
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
 
+
  /**
  * The interaction manager deals with mouse and touch events. Any DisplayObject can be interactive
  * if its interactive parameter is set to true
@@ -3459,6 +3460,8 @@ PIXI.InteractionManager = function(stage)
 
 // constructor
 PIXI.InteractionManager.prototype.constructor = PIXI.InteractionManager;
+
+PIXI.InteractionManager.enabled = true;
 
 /**
  * Collects an interactive sprite recursively to have their interactions managed
@@ -3603,6 +3606,8 @@ PIXI.InteractionManager.prototype.update = function()
 
     var i = 0;
 
+    if (!PIXI.InteractionManager.enabled) return;
+
     // ok.. so mouse events??
     // yes for now :)
     // OPTIMISE - how often to check??
@@ -3686,6 +3691,7 @@ PIXI.InteractionManager.prototype.rebuildInteractiveGraph = function()
  */
 PIXI.InteractionManager.prototype.onMouseMove = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -3721,6 +3727,7 @@ PIXI.InteractionManager.prototype.onMouseMove = function(event)
  */
 PIXI.InteractionManager.prototype.onMouseDown = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -3769,6 +3776,7 @@ PIXI.InteractionManager.prototype.onMouseDown = function(event)
  */
 PIXI.InteractionManager.prototype.onMouseOut = function()
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -3805,6 +3813,8 @@ PIXI.InteractionManager.prototype.onMouseOut = function()
  */
 PIXI.InteractionManager.prototype.onMouseUp = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
+
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -3973,6 +3983,7 @@ PIXI.InteractionManager.prototype.onTouchMove = function(event)
  */
 PIXI.InteractionManager.prototype.onTouchStart = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -4034,6 +4045,8 @@ PIXI.InteractionManager.prototype.onTouchStart = function(event)
  */
 PIXI.InteractionManager.prototype.onTouchEnd = function(event)
 {
+    if (!PIXI.InteractionManager.enabled)
+        return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -6653,6 +6666,12 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
      */
     this.height = height || 600;
 
+    var gl = null;
+    if (PIXI.WebGLRenderer.isWebGLContext(view)) {
+        gl = view
+        view = gl.canvas
+    }
+
     /**
      * The canvas element that everything is drawn to
      *
@@ -6667,8 +6686,8 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
     this.contextLost = this.handleContextLost.bind(this);
     this.contextRestoredLost = this.handleContextRestored.bind(this);
     
-    this.view.addEventListener('webglcontextlost', this.contextLost, false);
-    this.view.addEventListener('webglcontextrestored', this.contextRestoredLost, false);
+    // this.view.addEventListener('webglcontextlost', this.contextLost, false);
+    // this.view.addEventListener('webglcontextrestored', this.contextRestoredLost, false);
 
     this.options = {
         alpha: this.transparent,
@@ -6678,13 +6697,13 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
         preserveDrawingBuffer: preserveDrawingBuffer
     };
 
-    var gl = null;
-
-    ['experimental-webgl', 'webgl'].forEach(function(name) {
-        try {
-            gl = gl || this.view.getContext(name,  this.options);
-        } catch(e) {}
-    }, this);
+    if (!gl) {
+        ['webgl', 'experimental-webgl'].forEach(function(name) {
+            try {
+                gl = gl || this.view.getContext(name,  this.options);
+            } catch(e) {}
+        }, this);
+    }
 
     if (!gl) {
         // fail, not able to get a context
@@ -6765,6 +6784,18 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
 
 // constructor
 PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
+
+PIXI.WebGLRenderer.isWebGLContext = function(ctx) {
+    /* global WebGLRenderingContext */
+    if (!ctx) return false
+    var gl = ctx
+    //compatibility with Chrome WebGL Inspector Addon
+    if (typeof ctx.rawgl !== 'undefined')
+        gl = ctx.rawgl
+    if (typeof WebGLRenderingContext !== 'undefined' && gl instanceof WebGLRenderingContext)
+        return true
+    return false
+}
 
 /**
  * Renders the stage to its webGL view

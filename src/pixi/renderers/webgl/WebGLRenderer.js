@@ -65,6 +65,12 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
      */
     this.height = height || 600;
 
+    var gl = null;
+    if (PIXI.WebGLRenderer.isWebGLContext(view)) {
+        gl = view
+        view = gl.canvas
+    }
+
     /**
      * The canvas element that everything is drawn to
      *
@@ -79,8 +85,8 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
     this.contextLost = this.handleContextLost.bind(this);
     this.contextRestoredLost = this.handleContextRestored.bind(this);
     
-    this.view.addEventListener('webglcontextlost', this.contextLost, false);
-    this.view.addEventListener('webglcontextrestored', this.contextRestoredLost, false);
+    // this.view.addEventListener('webglcontextlost', this.contextLost, false);
+    // this.view.addEventListener('webglcontextrestored', this.contextRestoredLost, false);
 
     this.options = {
         alpha: this.transparent,
@@ -90,13 +96,13 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
         preserveDrawingBuffer: preserveDrawingBuffer
     };
 
-    var gl = null;
-
-    ['experimental-webgl', 'webgl'].forEach(function(name) {
-        try {
-            gl = gl || this.view.getContext(name,  this.options);
-        } catch(e) {}
-    }, this);
+    if (!gl) {
+        ['webgl', 'experimental-webgl'].forEach(function(name) {
+            try {
+                gl = gl || this.view.getContext(name,  this.options);
+            } catch(e) {}
+        }, this);
+    }
 
     if (!gl) {
         // fail, not able to get a context
@@ -177,6 +183,18 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
 
 // constructor
 PIXI.WebGLRenderer.prototype.constructor = PIXI.WebGLRenderer;
+
+PIXI.WebGLRenderer.isWebGLContext = function(ctx) {
+    /* global WebGLRenderingContext */
+    if (!ctx) return false
+    var gl = ctx
+    //compatibility with Chrome WebGL Inspector Addon
+    if (typeof ctx.rawgl !== 'undefined')
+        gl = ctx.rawgl
+    if (typeof WebGLRenderingContext !== 'undefined' && gl instanceof WebGLRenderingContext)
+        return true
+    return false
+}
 
 /**
  * Renders the stage to its webGL view

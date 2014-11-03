@@ -2,6 +2,7 @@
  * @author Mat Groves http://matgroves.com/ @Doormat23
  */
 
+
  /**
  * The interaction manager deals with mouse and touch events. Any DisplayObject can be interactive
  * if its interactive parameter is set to true
@@ -104,6 +105,8 @@ PIXI.InteractionManager = function(stage)
 
 // constructor
 PIXI.InteractionManager.prototype.constructor = PIXI.InteractionManager;
+
+PIXI.InteractionManager.enabled = true;
 
 /**
  * Collects an interactive sprite recursively to have their interactions managed
@@ -248,6 +251,8 @@ PIXI.InteractionManager.prototype.update = function()
 
     var i = 0;
 
+    if (!PIXI.InteractionManager.enabled) return;
+
     // ok.. so mouse events??
     // yes for now :)
     // OPTIMISE - how often to check??
@@ -331,6 +336,7 @@ PIXI.InteractionManager.prototype.rebuildInteractiveGraph = function()
  */
 PIXI.InteractionManager.prototype.onMouseMove = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -366,6 +372,7 @@ PIXI.InteractionManager.prototype.onMouseMove = function(event)
  */
 PIXI.InteractionManager.prototype.onMouseDown = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -414,6 +421,7 @@ PIXI.InteractionManager.prototype.onMouseDown = function(event)
  */
 PIXI.InteractionManager.prototype.onMouseOut = function()
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -450,6 +458,8 @@ PIXI.InteractionManager.prototype.onMouseOut = function()
  */
 PIXI.InteractionManager.prototype.onMouseUp = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
+
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -618,6 +628,7 @@ PIXI.InteractionManager.prototype.onTouchMove = function(event)
  */
 PIXI.InteractionManager.prototype.onTouchStart = function(event)
 {
+    if (!PIXI.InteractionManager.enabled) return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
@@ -679,6 +690,8 @@ PIXI.InteractionManager.prototype.onTouchStart = function(event)
  */
 PIXI.InteractionManager.prototype.onTouchEnd = function(event)
 {
+    if (!PIXI.InteractionManager.enabled)
+        return;
     if(this.dirty)
     {
         this.rebuildInteractiveGraph();
