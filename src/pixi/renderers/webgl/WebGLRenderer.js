@@ -81,6 +81,8 @@ PIXI.WebGLRenderer = function(width, height, view, transparent, antialias, prese
     this.view.width = this.width;
     this.view.height = this.height;
 
+    this.autoClear = true;
+
     // deal with losing context..
     this.contextLost = this.handleContextLost.bind(this);
     this.contextRestoredLost = this.handleContextRestored.bind(this);
@@ -253,8 +255,8 @@ PIXI.WebGLRenderer.prototype.render = function(stage)
         gl.clearColor(stage.backgroundColorSplit[0],stage.backgroundColorSplit[1],stage.backgroundColorSplit[2], 1);
     }
 
-
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (this.autoClear)
+        gl.clear(gl.COLOR_BUFFER_BIT);
 
     this.renderDisplayObject( stage, this.projection );
 
@@ -444,6 +446,8 @@ PIXI.createWebGLTexture = function(texture, gl)
 
         gl.bindTexture(gl.TEXTURE_2D, texture._glTextures[gl.id]);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultipliedAlpha);
+        gl.pixelStorei( gl.UNPACK_FLIP_Y_WEBGL, false )
+        gl.pixelStorei( gl.UNPACK_ALIGNMENT, 4 )
 
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.source);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, texture.scaleMode === PIXI.scaleModes.LINEAR ? gl.LINEAR : gl.NEAREST);
@@ -485,6 +489,9 @@ PIXI.updateWebGLTexture = function(texture, gl)
     {
         gl.bindTexture(gl.TEXTURE_2D, texture._glTextures[gl.id]);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultipliedAlpha);
+
+        gl.pixelStorei( gl.UNPACK_FLIP_Y_WEBGL, false );
+        gl.pixelStorei( gl.UNPACK_ALIGNMENT, 4 );
 
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.source);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, texture.scaleMode === PIXI.scaleModes.LINEAR ? gl.LINEAR : gl.NEAREST);
