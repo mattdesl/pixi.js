@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2014-11-03
+ * Compiled: 2015-01-15
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -949,7 +949,8 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'interactive', {
 Object.defineProperty(PIXI.DisplayObject.prototype, 'worldVisible', {
     get: function() {
         var item = this;
-
+        if (this.worldAlpha === 0)
+            return false;
         do
         {
             if(!item.visible)return false;

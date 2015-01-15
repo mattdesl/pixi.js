@@ -331,7 +331,8 @@ Object.defineProperty(PIXI.DisplayObject.prototype, 'interactive', {
 Object.defineProperty(PIXI.DisplayObject.prototype, 'worldVisible', {
     get: function() {
         var item = this;
-
+        if (this.worldAlpha === 0)
+            return false;
         do
         {
             if(!item.visible)return false;
