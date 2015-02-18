@@ -649,7 +649,8 @@ PIXI.Graphics.prototype.generateTexture = function()
 PIXI.Graphics.prototype._renderWebGL = function(renderSession)
 {
     // if the sprite is not visible or the alpha is 0 then no need to render this element
-    if(this.visible === false || this.alpha === 0 || this.isMask === true)return;
+    if(this.visible === false || this.alpha === 0 ||
+        this.isMask === true || this.ignoreRender) return;
     
 
     if(this._cacheAsBitmap)

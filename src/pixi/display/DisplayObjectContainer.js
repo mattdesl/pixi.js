@@ -395,7 +395,7 @@ PIXI.DisplayObjectContainer.prototype.removeStageReference = function()
 */
 PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
 {
-    if(!this.visible || this.alpha <= 0)return;
+    if(!this.visible || this.alpha <= 0 || this.ignoreRender)return;
     
     if(this._cacheAsBitmap)
     {

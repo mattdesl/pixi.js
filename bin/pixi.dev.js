@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2015-01-15
+ * Compiled: 2015-01-22
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -747,6 +747,12 @@ PIXI.DisplayObject = function()
      *
     */
     this.defaultCursor = 'pointer';
+
+    /**
+     * Whether to ignore rendering. Will still handle events / etc. 
+     * @type {Boolean}
+     */
+    this.ignoreRender = false;
 
     /**
      * [read-only] Current transform of the object based on world (parent) factors
@@ -1719,7 +1725,7 @@ PIXI.DisplayObjectContainer.prototype.removeStageReference = function()
 */
 PIXI.DisplayObjectContainer.prototype._renderWebGL = function(renderSession)
 {
-    if(!this.visible || this.alpha <= 0)return;
+    if(!this.visible || this.alpha <= 0 || this.ignoreRender)return;
     
     if(this._cacheAsBitmap)
     {
@@ -2066,7 +2072,7 @@ PIXI.Sprite.prototype.getBounds = function(matrix)
 PIXI.Sprite.prototype._renderWebGL = function(renderSession)
 {
     // if the sprite is not visible or the alpha is 0 then no need to render this element
-    if(!this.visible || this.alpha <= 0)return;
+    if(!this.visible || this.alpha <= 0 || this.ignoreRender)return;
     
     var i,j;
 
@@ -10810,7 +10816,8 @@ PIXI.Graphics.prototype.generateTexture = function()
 PIXI.Graphics.prototype._renderWebGL = function(renderSession)
 {
     // if the sprite is not visible or the alpha is 0 then no need to render this element
-    if(this.visible === false || this.alpha === 0 || this.isMask === true)return;
+    if(this.visible === false || this.alpha === 0 ||
+        this.isMask === true || this.ignoreRender) return;
     
 
     if(this._cacheAsBitmap)

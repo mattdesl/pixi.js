@@ -131,6 +131,12 @@ PIXI.DisplayObject = function()
     this.defaultCursor = 'pointer';
 
     /**
+     * Whether to ignore rendering. Will still handle events / etc. 
+     * @type {Boolean}
+     */
+    this.ignoreRender = false;
+
+    /**
      * [read-only] Current transform of the object based on world (parent) factors
      *
      * @property worldTransform
