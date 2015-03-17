@@ -428,7 +428,7 @@ PIXI.WebGLSpriteBatch.prototype.flush = function()
 
     var currentBaseTexture = null;
     var currentBlendMode = this.renderSession.blendModeManager.currentBlendMode;
-
+    
     for (var i = 0, j = this.currentBatchSize; i < j; i++) {
         
         nextTexture = this.textures[i];

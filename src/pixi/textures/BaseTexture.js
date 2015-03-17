@@ -194,6 +194,23 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
     return baseTexture;
 };
 
+PIXI.BaseTexture.fromSource = function(path, image, glTexture) {
+    var baseTexture = PIXI.BaseTextureCache[path];
+    if (baseTexture)
+        return baseTexture;
+    
+    baseTexture = new PIXI.BaseTexture(image);
+    baseTexture.source = image;
+    baseTexture.imageUrl = path;
+    baseTexture.hasLoaded = true;
+    baseTexture.width = image.width;
+    baseTexture.height = image.height;
+    baseTexture._glTextures[0] = glTexture;
+    baseTexture._dirty[0] = false;
+    PIXI.BaseTextureCache[path] = baseTexture;
+    return baseTexture;
+}
+
 /**
  * Helper function that returns a base texture based on a canvas element
  * If the image is not in the base texture cache it will be created and loaded
@@ -221,5 +238,3 @@ PIXI.BaseTexture.fromCanvas = function(canvas, scaleMode)
 
     return baseTexture;
 };
-
-

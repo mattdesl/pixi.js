@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2015-01-22
+ * Compiled: 2015-03-17
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -7051,7 +7051,7 @@ PIXI.createWebGLTexture = function(texture, gl)
     if(texture.hasLoaded)
     {
         texture._glTextures[gl.id] = gl.createTexture();
-
+        debugger
         gl.bindTexture(gl.TEXTURE_2D, texture._glTextures[gl.id]);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultipliedAlpha);
         gl.pixelStorei( gl.UNPACK_FLIP_Y_WEBGL, false )
@@ -7095,6 +7095,7 @@ PIXI.updateWebGLTexture = function(texture, gl)
 {
     if( texture._glTextures[gl.id] )
     {
+        debugger
         gl.bindTexture(gl.TEXTURE_2D, texture._glTextures[gl.id]);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultipliedAlpha);
 
@@ -8199,7 +8200,7 @@ PIXI.WebGLSpriteBatch.prototype.flush = function()
 
     var currentBaseTexture = null;
     var currentBlendMode = this.renderSession.blendModeManager.currentBlendMode;
-
+    
     for (var i = 0, j = this.currentBatchSize; i < j; i++) {
         
         nextTexture = this.textures[i];
@@ -13704,6 +13705,23 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
     return baseTexture;
 };
 
+PIXI.BaseTexture.fromSource = function(path, image, glTexture) {
+    var baseTexture = PIXI.BaseTextureCache[path];
+    if (baseTexture)
+        return baseTexture;
+    
+    baseTexture = new PIXI.BaseTexture(image);
+    baseTexture.source = image;
+    baseTexture.imageUrl = path;
+    baseTexture.hasLoaded = true;
+    baseTexture.width = image.width;
+    baseTexture.height = image.height;
+    baseTexture._glTextures[0] = glTexture;
+    baseTexture._dirty[0] = false;
+    PIXI.BaseTextureCache[path] = baseTexture;
+    return baseTexture;
+}
+
 /**
  * Helper function that returns a base texture based on a canvas element
  * If the image is not in the base texture cache it will be created and loaded
@@ -13731,8 +13749,6 @@ PIXI.BaseTexture.fromCanvas = function(canvas, scaleMode)
 
     return baseTexture;
 };
-
-
 
 /**
  * @author Mat Groves http://matgroves.com/ @Doormat23
