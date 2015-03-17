@@ -443,7 +443,7 @@ PIXI.createWebGLTexture = function(texture, gl)
     if(texture.hasLoaded)
     {
         texture._glTextures[gl.id] = gl.createTexture();
-        debugger
+        
         gl.bindTexture(gl.TEXTURE_2D, texture._glTextures[gl.id]);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultipliedAlpha);
         gl.pixelStorei( gl.UNPACK_FLIP_Y_WEBGL, false )
@@ -487,7 +487,6 @@ PIXI.updateWebGLTexture = function(texture, gl)
 {
     if( texture._glTextures[gl.id] )
     {
-        debugger
         gl.bindTexture(gl.TEXTURE_2D, texture._glTextures[gl.id]);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultipliedAlpha);
 
