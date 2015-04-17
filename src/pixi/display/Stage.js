@@ -31,7 +31,8 @@ PIXI.Stage = function(backgroundColor)
      * @private
      */
     this.worldTransform = new PIXI.Matrix();
-
+    this._animCache = false;
+    
     /**
      * Whether or not the stage is interactive
      *
@@ -69,6 +70,42 @@ PIXI.Stage = function(backgroundColor)
 // constructor
 PIXI.Stage.prototype = Object.create( PIXI.DisplayObjectContainer.prototype );
 PIXI.Stage.prototype.constructor = PIXI.Stage;
+
+PIXI.Stage.prototype.updateAnimations = function() {
+    this._animCache = this._isChildAnimating(this);
+}
+
+PIXI.Stage.prototype.isAnimating = function() {
+    return this._animCache;
+}
+
+PIXI.Stage.prototype._isChildAnimating = function(element, onlyChildren) {
+    //if the element is still animating...
+    var animating = element.currentlyAnimating;
+    if (animating && !onlyChildren)
+        return true;
+    //not animating, no children, no more animations
+    if (!element.children || element.children.length === 0)
+        return false;
+
+    //have some children, return true on first animating
+    for (var i=0; i<element.children.length; i++) {
+        var child = element.children[i];
+        if (child.currentlyAnimating)
+            return true;
+
+        //check each child recursively
+        if (child.children && child.children.length) {
+            animating = this._isChildAnimating(child);
+            //if it or any children are animating, return true
+            if (animating) {
+                return true;
+            }
+        }
+    }
+    //no children are currently animating
+    return false;
+}
 
 /**
  * Sets another DOM element which can receive mouse/touch interactions instead of the default Canvas element.

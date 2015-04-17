@@ -149,7 +149,7 @@ PIXI.DisplayObject = function()
     /*
     Whether or not this object is currently aniamting.
      */
-    this.animating = false;
+    this._animating = false;
     
     /**
      * [NYI] Unknown
@@ -312,6 +312,15 @@ PIXI.DisplayObject.prototype.setInteractive = function(interactive)
 {
     this.interactive = interactive;
 };
+
+Object.defineProperty(PIXI.DisplayObject.prototype, 'currentlyAnimating', {
+    get: function() {
+        return this._animating;
+    },
+    set: function(value) {
+        this._animating = value;
+    }
+});
 
 /**
  * Indicates if the sprite will have touch and mouse interactivity. It is false by default
