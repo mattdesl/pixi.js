@@ -146,6 +146,11 @@ PIXI.DisplayObject = function()
      */
     this.worldTransform = new PIXI.Matrix();
 
+    /*
+    Whether or not this object is currently aniamting.
+     */
+    this.animating = false;
+    
     /**
      * [NYI] Unknown
      *

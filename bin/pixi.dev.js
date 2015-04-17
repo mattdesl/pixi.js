@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2015-03-17
+ * Compiled: 2015-04-17
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -764,6 +764,11 @@ PIXI.DisplayObject = function()
      */
     this.worldTransform = new PIXI.Matrix();
 
+    /*
+    Whether or not this object is currently aniamting.
+     */
+    this.animating = false;
+    
     /**
      * [NYI] Unknown
      *
