@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2015-04-17
+ * Compiled: 2015-04-29
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -3509,7 +3509,7 @@ PIXI.InteractionManager.prototype.collectInteractiveSprite = function(displayObj
             //child.__iParent = iParent;
             this.interactiveItems.push(child);
 
-            if(child.children.length > 0)
+            if(child.children && child.children.length > 0)
             {
                 this.collectInteractiveSprite(child, child);
             }
@@ -3660,7 +3660,7 @@ PIXI.InteractionManager.prototype.update = function()
         {
             if(item.buttonMode) cursor = item.defaultCursor;
 
-            if(!item.interactiveChildren)over = true;
+            if(!item.interactiveChildren || item.opaque)over = true;
 
             if(!item.__isOver)
             {
@@ -3782,7 +3782,7 @@ PIXI.InteractionManager.prototype.onMouseDown = function(event)
                 item.__isDown = true;
 
                 // just the one!
-                if(!item.interactiveChildren)break;
+                if(!item.interactiveChildren || item.opaque)break;
             }
         }
     }
@@ -3864,7 +3864,7 @@ PIXI.InteractionManager.prototype.onMouseUp = function(event)
                 if(item.click)item.click(this.mouse);
             }
 
-            if(!item.interactiveChildren)up = true;
+            if(!item.interactiveChildren || item.opaque)up = true;
         }
         else
         {
@@ -4013,7 +4013,6 @@ PIXI.InteractionManager.prototype.onTouchStart = function(event)
     var rect = this.interactionDOMElement.getBoundingClientRect();
 
     if(PIXI.AUTO_PREVENT_DEFAULT)event.preventDefault();
-    
     var changedTouches = event.changedTouches;
     for (var i=0; i < changedTouches.length; i++)
     {
@@ -4050,7 +4049,7 @@ PIXI.InteractionManager.prototype.onTouchStart = function(event)
                     item.__touchData = item.__touchData || {};
                     item.__touchData[touchEvent.identifier] = touchData;
 
-                    if(!item.interactiveChildren)break;
+                    if(!item.interactiveChildren || item.opaque)break;
                 }
             }
         }
@@ -4112,7 +4111,7 @@ PIXI.InteractionManager.prototype.onTouchEnd = function(event)
                             if(item.tap)item.tap(touchData);
                         }
 
-                        if(!item.interactiveChildren)up = true;
+                        if(!item.interactiveChildren || item.opaque)up = true;
                     }
                     else
                     {
@@ -5211,7 +5210,6 @@ PIXI.PixiShader.prototype.initSampler2D = function(uniform)
             wrapS = gl.REPEAT;
             wrapT = gl.REPEAT;
         }
-
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, !!data.flipY);
 
         if (data.width)
