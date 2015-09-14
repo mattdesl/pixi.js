@@ -182,7 +182,7 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
         // See https://code.google.com/p/chromium/issues/detail?id=238071
         var image = new Image();//document.createElement('img');
         PIXI.TotalImages++;
-        console.warn('New Image:', PIXI.TotalImages);
+        console.warn('New Image:', PIXI.TotalImages, imageUrl);
         if (crossorigin)
         {
             image.crossOrigin = '';
