@@ -5,7 +5,7 @@
 PIXI.BaseTextureCache = {};
 PIXI.texturesToUpdate = [];
 PIXI.texturesToDestroy = [];
-
+PIXI.TotalImages = 0
 PIXI.BaseTextureCacheIdGenerator = 0;
 
 /**
@@ -181,6 +181,8 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
         // new Image() breaks tex loading in some versions of Chrome.
         // See https://code.google.com/p/chromium/issues/detail?id=238071
         var image = new Image();//document.createElement('img');
+        PIXI.TotalImages++;
+        console.warn('New Image:', PIXI.TotalImages);
         if (crossorigin)
         {
             image.crossOrigin = '';

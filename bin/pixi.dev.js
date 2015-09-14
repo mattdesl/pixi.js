@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2015-04-29
+ * Compiled: 2015-09-14
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -13564,7 +13564,7 @@ PIXI.Spine.prototype.createSprite = function (slot, descriptor) {
 PIXI.BaseTextureCache = {};
 PIXI.texturesToUpdate = [];
 PIXI.texturesToDestroy = [];
-
+PIXI.TotalImages = 0
 PIXI.BaseTextureCacheIdGenerator = 0;
 
 /**
@@ -13740,6 +13740,8 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
         // new Image() breaks tex loading in some versions of Chrome.
         // See https://code.google.com/p/chromium/issues/detail?id=238071
         var image = new Image();//document.createElement('img');
+        PIXI.TotalImages++;
+        console.warn('New Image:', PIXI.TotalImages);
         if (crossorigin)
         {
             image.crossOrigin = '';
