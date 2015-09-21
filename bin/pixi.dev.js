@@ -13754,10 +13754,15 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode, callback
         {
             image.crossOrigin = '';
         }
-        baseTexture = new PIXI.BaseTexture(image, scaleMode, callback);
+        baseTexture = new PIXI.BaseTexture(image, scaleMode, function (err) {
+            if (err) callback(err);
+            else {
+                PIXI.BaseTextureCache[imageUrl] = baseTexture;
+                callback(null, baseTexture);
+            }
+        });
         image.src = imageUrl;
         baseTexture.imageUrl = imageUrl;
-        PIXI.BaseTextureCache[imageUrl] = baseTexture;
     }
 
     return baseTexture;
