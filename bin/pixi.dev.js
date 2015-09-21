@@ -4,7 +4,7 @@
  * Copyright (c) 2012-2014, Mat Groves
  * http://goodboydigital.com/
  *
- * Compiled: 2015-09-14
+ * Compiled: 2015-09-21
  *
  * pixi is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license.php
@@ -13576,7 +13576,7 @@ PIXI.BaseTextureCacheIdGenerator = 0;
  * @param source {String} the source object (image or canvas)
  * @param scaleMode {Number} Should be one of the PIXI.scaleMode consts
  */
-PIXI.BaseTexture = function(source, scaleMode)
+PIXI.BaseTexture = function(source, scaleMode, callback)
 {
     PIXI.EventTarget.call( this );
 
@@ -13641,6 +13641,8 @@ PIXI.BaseTexture = function(source, scaleMode)
     // used for webGL teture updateing...
     this._dirty = [];
     
+    callback = callback || function (){};
+        
     if(!source)return;
 
     if((this.source.complete || this.source.getContext) && this.source.width && this.source.height)
@@ -13650,6 +13652,9 @@ PIXI.BaseTexture = function(source, scaleMode)
         this.height = this.source.height;
 
         PIXI.texturesToUpdate.push(this);
+        setTimeout(function () {
+            callback(null, this);
+        }.bind(this));
     }
     else
     {
@@ -13668,9 +13673,11 @@ PIXI.BaseTexture = function(source, scaleMode)
 
             // add it to somewhere...
             scope.dispatchEvent( { type: 'loaded', content: scope } );
+            callback(null, scope);
         };
         this.source.onerror = function() {
             scope.dispatchEvent( { type: 'error', content: scope } );
+            callback(new Error('could not load image '));
         };
     }
 
@@ -13729,9 +13736,10 @@ PIXI.BaseTexture.prototype.updateSourceImage = function(newSrc)
  * @param scaleMode {Number} Should be one of the PIXI.scaleMode consts
  * @return BaseTexture
  */
-PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
+PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode, callback)
 {
     var baseTexture = PIXI.BaseTextureCache[imageUrl];
+    callback = callback || function(){};
     
     if(crossorigin === undefined && imageUrl.indexOf('data:') === -1) crossorigin = true;
 
@@ -13746,8 +13754,8 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
         {
             image.crossOrigin = '';
         }
+        baseTexture = new PIXI.BaseTexture(image, scaleMode, callback);
         image.src = imageUrl;
-        baseTexture = new PIXI.BaseTexture(image, scaleMode);
         baseTexture.imageUrl = imageUrl;
         PIXI.BaseTextureCache[imageUrl] = baseTexture;
     }
@@ -14039,14 +14047,25 @@ PIXI.Texture.prototype._updateWebGLuvs = function()
  * @param scaleMode {Number} Should be one of the PIXI.scaleMode consts
  * @return Texture
  */
-PIXI.Texture.fromImage = function(imageUrl, crossorigin, scaleMode)
+PIXI.Texture.fromImage = function(imageUrl, crossorigin, scaleMode, callback)
 {
     var texture = PIXI.TextureCache[imageUrl];
-
-    if(!texture)
+    callback = callback || function (){};
+    
+    if(!texture) // load asynchronously
     {
-        texture = new PIXI.Texture(PIXI.BaseTexture.fromImage(imageUrl, crossorigin, scaleMode));
-        PIXI.TextureCache[imageUrl] = texture;
+        texture = new PIXI.Texture(PIXI.BaseTexture.fromImage(imageUrl, crossorigin, scaleMode, function (err) {
+            if (err) callback(err);
+            else {
+                PIXI.TextureCache[imageUrl] = texture;
+                callback(null, texture);
+            }
+        }));
+    } else {
+        // set timeout to ensure async
+        setTimeout(function () {
+            callback(null, texture);
+        }, 0)
     }
 
     return texture;

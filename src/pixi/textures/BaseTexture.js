@@ -17,7 +17,7 @@ PIXI.BaseTextureCacheIdGenerator = 0;
  * @param source {String} the source object (image or canvas)
  * @param scaleMode {Number} Should be one of the PIXI.scaleMode consts
  */
-PIXI.BaseTexture = function(source, scaleMode)
+PIXI.BaseTexture = function(source, scaleMode, callback)
 {
     PIXI.EventTarget.call( this );
 
@@ -82,6 +82,8 @@ PIXI.BaseTexture = function(source, scaleMode)
     // used for webGL teture updateing...
     this._dirty = [];
     
+    callback = callback || function (){};
+        
     if(!source)return;
 
     if((this.source.complete || this.source.getContext) && this.source.width && this.source.height)
@@ -91,6 +93,9 @@ PIXI.BaseTexture = function(source, scaleMode)
         this.height = this.source.height;
 
         PIXI.texturesToUpdate.push(this);
+        setTimeout(function () {
+            callback(null, this);
+        }.bind(this));
     }
     else
     {
@@ -109,9 +114,11 @@ PIXI.BaseTexture = function(source, scaleMode)
 
             // add it to somewhere...
             scope.dispatchEvent( { type: 'loaded', content: scope } );
+            callback(null, scope);
         };
         this.source.onerror = function() {
             scope.dispatchEvent( { type: 'error', content: scope } );
+            callback(new Error('could not load image '));
         };
     }
 
@@ -170,9 +177,10 @@ PIXI.BaseTexture.prototype.updateSourceImage = function(newSrc)
  * @param scaleMode {Number} Should be one of the PIXI.scaleMode consts
  * @return BaseTexture
  */
-PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
+PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode, callback)
 {
     var baseTexture = PIXI.BaseTextureCache[imageUrl];
+    callback = callback || function(){};
     
     if(crossorigin === undefined && imageUrl.indexOf('data:') === -1) crossorigin = true;
 
@@ -187,8 +195,8 @@ PIXI.BaseTexture.fromImage = function(imageUrl, crossorigin, scaleMode)
         {
             image.crossOrigin = '';
         }
+        baseTexture = new PIXI.BaseTexture(image, scaleMode, callback);
         image.src = imageUrl;
-        baseTexture = new PIXI.BaseTexture(image, scaleMode);
         baseTexture.imageUrl = imageUrl;
         PIXI.BaseTextureCache[imageUrl] = baseTexture;
     }

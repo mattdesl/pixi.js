@@ -237,14 +237,25 @@ PIXI.Texture.prototype._updateWebGLuvs = function()
  * @param scaleMode {Number} Should be one of the PIXI.scaleMode consts
  * @return Texture
  */
-PIXI.Texture.fromImage = function(imageUrl, crossorigin, scaleMode)
+PIXI.Texture.fromImage = function(imageUrl, crossorigin, scaleMode, callback)
 {
     var texture = PIXI.TextureCache[imageUrl];
-
-    if(!texture)
+    callback = callback || function (){};
+    
+    if(!texture) // load asynchronously
     {
-        texture = new PIXI.Texture(PIXI.BaseTexture.fromImage(imageUrl, crossorigin, scaleMode));
-        PIXI.TextureCache[imageUrl] = texture;
+        texture = new PIXI.Texture(PIXI.BaseTexture.fromImage(imageUrl, crossorigin, scaleMode, function (err) {
+            if (err) callback(err);
+            else {
+                PIXI.TextureCache[imageUrl] = texture;
+                callback(null, texture);
+            }
+        }));
+    } else {
+        // set timeout to ensure async
+        setTimeout(function () {
+            callback(null, texture);
+        }, 0)
     }
 
     return texture;
